@@ -35,8 +35,11 @@ body{
   z-index:0;
   pointer-events:none;
   background-image:
-    repeating-linear-gradient(to right, var(--line), var(--line) 1px, transparent 1px, transparent 12.5%),
-    repeating-linear-gradient(to bottom, var(--line), var(--line) 1px, transparent 1px, transparent 16.6667%);
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size:
+    12.5% 100%,
+    100% 16.6667%;
 }
 
 /* ---------- content ---------- */

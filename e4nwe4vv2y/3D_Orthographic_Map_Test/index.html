@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>World Atlas — 3D Globe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="A self-hosted, offline-tiled world map (OpenFreeMap Liberty style) rendered as a 3D orthographic globe." />
+
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@4.5.0/dist/pmtiles.js"></script>
+
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    /* Deep space background behind the globe */
+    body {
+      background: #05070d;
+    }
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #cbd5e1;
+      font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #05070d;
+      z-index: 5;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    #error {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      max-width: 480px;
+      display: none;
+      background: rgba(20, 20, 24, 0.92);
+      color: #ffb4b4;
+      border: 1px solid #7a2323;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      z-index: 10;
+    }
+    #error code {
+      display: block;
+      margin-top: 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="loading">Loading globe…</div>
+  <div id="error"></div>
+
+  <script>
+    // --- Register the pmtiles:// protocol so MapLibre can stream tiles
+    //     directly out of the single .pmtiles archive over HTTP range requests ---
+    const pmProtocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", pmProtocol.tile);
+
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "style.json",   // customized OpenFreeMap Liberty style (see style.json)
+      center: [12, 26],       // starting lng/lat
+      zoom: 1.6,              // zoomed out enough to see the whole globe
+      minZoom: 0,
+      maxZoom: 18,
+      maxPitch: 85,
+      dragRotate: true,
+      touchZoomRotate: true,
+      canvasContextAttributes: { antialias: true } // smoother globe edge
+    });
+
+    // The style.json already declares "projection": {"type": "globe"},
+    // so the map loads directly into globe mode. A GlobeControl button
+    // lets visitors toggle back to a flat Mercator view if they want.
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(new maplibregl.GlobeControl(), "top-right");
+    map.addControl(new maplibregl.FullscreenControl(), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
+
+    map.on("load", () => {
+      document.getElementById("loading").style.opacity = "0";
+      setTimeout(() => (document.getElementById("loading").style.display = "none"), 300);
+    });
+
+    map.on("error", (e) => {
+      const box = document.getElementById("error");
+      const msg = (e && e.error && e.error.message) || String(e);
+      box.style.display = "block";
+      box.innerHTML =
+        "<strong>Map error</strong> — this is almost always a CORS issue on the R2 bucket " +
+        "(range requests to world.pmtiles being blocked), or the file not being reachable yet." +
+        "<code>" + msg + "</code>";
+      console.error("MapLibre error:", e);
+    });
+  </script>
+</body>
+</html>

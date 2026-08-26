@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>World Basemap — Globe View</title>
+<meta name="description" content="A 3D globe view of a self-hosted PMTiles world basemap, styled after OpenFreeMap Liberty." />
+
+<link rel="stylesheet" href="https://unpkg.com/[email protected]/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/[email protected]/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/[email protected]/dist/pmtiles.js"></script>
+<script src="https://unpkg.com/@protomaps/[email protected]/dist/basemaps.js"></script>
+
+<style>
+  :root {
+    --bg-space-1: #05070d;
+    --bg-space-2: #0d1224;
+    --panel-bg: rgba(13, 16, 28, 0.82);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --text-main: #eef0f6;
+    --text-dim: #9aa0b4;
+    --accent: #6fb1a0;
+    --warn: #d99a4e;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(ellipse at 50% 35%, var(--bg-space-2) 0%, var(--bg-space-1) 70%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    color: var(--text-main);
+  }
+
+  #map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* MapLibre draws its own background layer, but outside the globe sphere
+     (once zoomed out) the container's own background shows through —
+     this is what gives the "floating in space" effect. */
+
+  .overlay-panel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    max-width: 420px;
+    width: calc(100% - 48px);
+    padding: 20px 22px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    text-align: left;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  }
+
+  #loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+    flex: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #loading p, #error p, #schema-note p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  #error, #schema-note {
+    display: none;
+  }
+
+  #error h2, #schema-note h2 {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  #error code, #schema-note code {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+
+  #error a { color: var(--accent); }
+
+  #schema-note {
+    left: auto;
+    top: auto;
+    right: 16px;
+    bottom: 16px;
+    transform: none;
+    max-width: 340px;
+  }
+
+  #schema-note h2 { color: var(--warn); }
+
+  #schema-note button {
+    margin-top: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--panel-border);
+    color: var(--text-main);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+
+  .maplibregl-ctrl-attrib { font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="loading" class="overlay-panel">
+  <div class="spinner"></div>
+  <p>Reading world.pmtiles and preparing the globe…</p>
+</div>
+
+<div id="error" class="overlay-panel">
+  <h2>Couldn't load the basemap</h2>
+  <p id="error-detail">Something went wrong while reading the PMTiles file.</p>
+  <p style="margin-top:10px;">
+    The most common cause is that the Cloudflare R2 bucket doesn't yet allow
+    cross-origin requests from this page's domain. Check the bucket's
+    <strong>CORS Policy</strong> in the R2 dashboard — it needs to allow
+    <code>GET</code> requests with a <code>Range</code> header from this
+    origin. See the README that came with this file for the exact policy.
+  </p>
+</div>
+
+<div id="schema-note" class="overlay-panel">
+  <h2>Unrecognized tile schema</h2>
+  <p>
+    This basemap's vector layers don't match the standard Protomaps or
+    OpenMapTiles schema, so the styling below is a best-effort guess.
+    Detected layers:
+  </p>
+  <p style="margin-top:6px;"><code id="schema-note-layers">—</code></p>
+  <button id="schema-note-dismiss">Dismiss</button>
+</div>
+
+<script>
+(async () => {
+  // ---------------------------------------------------------------------
+  // Configuration
+  // ---------------------------------------------------------------------
+  const PMTILES_URL = "https://tiles.onhealthatlas.ca/world.pmtiles";
+  const INITIAL_CENTER = [12, 22];
+  const INITIAL_ZOOM = 1.6;
+
+  const loadingEl = document.getElementById("loading");
+  const errorEl = document.getElementById("error");
+  const errorDetailEl = document.getElementById("error-detail");
+  const schemaNoteEl = document.getElementById("schema-note");
+  const schemaNoteLayersEl = document.getElementById("schema-note-layers");
+  document.getElementById("schema-note-dismiss").addEventListener("click", () => {
+    schemaNoteEl.style.display = "none";
+  });
+
+  function showError(message) {
+    loadingEl.style.display = "none";
+    errorDetailEl.textContent = message;
+    errorEl.style.display = "block";
+  }
+
+  // ---------------------------------------------------------------------
+  // Register the pmtiles:// protocol with MapLibre
+  // ---------------------------------------------------------------------
+  const protocol = new pmtiles.Protocol({ metadata: true });
+  maplibregl.addProtocol("pmtiles", protocol.tile);
+  const pmtilesInstance = new pmtiles.PMTiles(PMTILES_URL);
+  protocol.add(pmtilesInstance);
+
+  // ---------------------------------------------------------------------
+  // A Liberty-inspired flavor for the Protomaps basemap schema.
+  // Colors are matched by eye to OpenFreeMap Liberty's palette
+  // (https://tiles.openfreemap.org/styles/liberty). Anything not
+  // overridden here falls back to @protomaps/basemaps' own "light" flavor.
+  // ---------------------------------------------------------------------
+  function libertyFlavor() {
+    return {
+      ...basemaps.namedFlavor("light"),
+      background: "#f8f4f0",
+      earth: "#f8f4f0",
+      park_a: "#d8e8c8",
+      park_b: "#cfe2ba",
+      wood_a: "#d7e8c0",
+      wood_b: "#cde0b2",
+      scrub_a: "#e1ecd2",
+      scrub_b: "#d8e6c7",
+      glacier: "#e0ecec",
+      sand: "#f7efc3",
+      beach: "#f7efc3",
+      school: "#eceecc",
+      hospital: "#ffddee",
+      pedestrian: "#e7e2d7",
+      buildings: "#dbd2c5",
+      boundaries: "#6b6a70",
+      water: "#9ebdff",
+      highway: "#f2a860",
+      highway_casing_early: "#e9ac77",
+      highway_casing_late: "#e9ac77",
+      major: "#ffeeaa",
+      major_casing_early: "#e9ac77",
+      major_casing_late: "#e9ac77",
+      minor_casing: "#cfcdca",
+      minor_service_casing: "#cfcdca",
+      link: "#ffdd99",
+      link_casing: "#e9ac77",
+      other: "#e9e4da",
+      railway: "#bbbbbb",
+      runway: "#e5e4e0",
+      aerodrome: "#e5e4e0",
+      city_label: "#222222",
+      city_label_halo: "#f8f4f0",
+      country_label: "#1a1a1a",
+      state_label: "#4d4d4d",
+      state_label_halo: "#f8f4f0",
+      ocean_label: "#5d7bab",
+      roads_label_major: "#555555",
+      roads_label_minor: "#666666",
+    };
+  }
+
+  function buildProtomapsStyle() {
+    return {
+      version: 8,
+      glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+      sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
+      sources: {
+        protomaps: {
+          type: "vector",
+          url: `pmtiles://${PMTILES_URL}`,
+          attribution:
+            '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+        },
+      },
+      layers: basemaps.layers("protomaps", libertyFlavor(), { lang: "en" }),
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // Fallback path: if the file turns out to use the OpenMapTiles schema
+  // instead (the schema OpenFreeMap Liberty is actually written for), fetch
+  // the real Liberty style live and just repoint its vector source at the
+  // pmtiles:// URL. This keeps it byte-for-byte identical to upstream Liberty.
+  // ---------------------------------------------------------------------
+  async function buildOpenMapTilesLibertyStyle() {
+    const resp = await fetch("https://tiles.openfreemap.org/styles/liberty");
+    if (!resp.ok) throw new Error("Could not fetch the OpenFreeMap Liberty style.json");
+    const style = await resp.json();
+    if (style.sources && style.sources.openmaptiles) {
+      style.sources.openmaptiles = {
+        type: "vector",
+        url: `pmtiles://${PMTILES_URL}`,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      };
+    }
+    return style;
+  }
+
+  // ---------------------------------------------------------------------
+  // Detect which schema world.pmtiles actually uses, by reading its
+  // embedded metadata (the vector_layers list), then build the matching
+  // style. Falls back to a best-effort Protomaps-flavored style if neither
+  // known schema is detected, so the map still renders something.
+  // ---------------------------------------------------------------------
+  async function resolveStyle() {
+    let layerIds = [];
+    try {
+      const meta = await pmtilesInstance.getMetadata();
+      layerIds = (meta.vector_layers || []).map((l) => l.id);
+    } catch (e) {
+      throw new Error(
+        "Couldn't read the PMTiles metadata (" + e.message + "). This is usually a CORS problem on the R2 bucket."
+      );
+    }
+
+    const idSet = new Set(layerIds);
+    const isProtomaps = ["roads", "earth", "places", "pois", "landuse"].every((id) => idSet.has(id));
+    const isOpenMapTiles = ["transportation", "water_name", "place"].every((id) => idSet.has(id));
+
+    if (isProtomaps) {
+      return buildProtomapsStyle();
+    }
+    if (isOpenMapTiles) {
+      return await buildOpenMapTilesLibertyStyle();
+    }
+
+    schemaNoteLayersEl.textContent = layerIds.length ? layerIds.join(", ") : "(no vector_layers found in metadata)";
+    schemaNoteEl.style.display = "block";
+    return buildProtomapsStyle();
+  }
+
+  // ---------------------------------------------------------------------
+  // Build the map
+  // ---------------------------------------------------------------------
+  let style;
+  try {
+    style = await resolveStyle();
+  } catch (e) {
+    showError(e.message);
+    return;
+  }
+
+  style.projection = { type: "globe" };
+  style.sky = {
+    "sky-color": "#0b1026",
+    "sky-horizon-blend": 0.6,
+    "horizon-color": "#c9dcff",
+    "horizon-fog-blend": 0.6,
+    "fog-color": "#f8f4f0",
+    "fog-ground-blend": 0.85,
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 1, 7, 0],
+  };
+  style.light = { anchor: "map", position: [1.5, 90, 80] };
+
+  const map = new maplibregl.Map({
+    container: "map",
+    style,
+    center: INITIAL_CENTER,
+    zoom: INITIAL_ZOOM,
+    minZoom: 0,
+    maxPitch: 70,
+    hash: true,
+    attributionControl: { compact: true },
+    canvasContextAttributes: { antialias: true },
+  });
+
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+  map.addControl(new maplibregl.GlobeControl(), "top-right");
+  map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+  map.addControl(new maplibregl.FullscreenControl(), "top-right");
+
+  map.on("load", () => {
+    loadingEl.style.display = "none";
+  });
+
+  map.on("error", (e) => {
+    console.error("MapLibre error:", e && e.error ? e.error : e);
+    if (loadingEl.style.display !== "none") {
+      showError(
+        (e && e.error && e.error.message) ||
+          "MapLibre reported an error while loading tiles. Check the browser console for details."
+      );
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Health Atlas — World Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- MapLibre GL JS (pinned version for stability) -->
+  <link href="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.js"></script>
+
+  <!-- PMTiles protocol handler, so MapLibre can read pmtiles:// vector sources directly from R2 -->
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+
+  <style>
+    html, body, #map {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: #0b1026; /* matches the style's space color so there's no flash before load */
+    }
+    .maplibregl-ctrl-attrib {
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    // Register the pmtiles:// protocol so MapLibre can fetch tiles directly
+    // out of the single .pmtiles archive on Cloudflare R2 via HTTP range requests.
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "style.json",   // relative path — served alongside this file on GitHub Pages
+      center: [0, 15],
+      zoom: 1.3,
+      pitch: 0,
+      bearing: 0,
+      hash: true,            // reflect view state in the URL (shareable links)
+      attributionControl: { compact: true }
+    });
+
+    // Belt-and-suspenders: force globe projection even if style.json's
+    // top-level "projection" is ever overwritten by a future edit.
+    map.on("style.load", () => {
+      map.setProjection({ type: "globe" });
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(new maplibregl.FullscreenControl(), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
+
+    // Adds a small button to toggle between the 3D globe and a flat mercator map.
+    // (Included in MapLibre GL JS since v4.1 — safe to skip if an older build is ever swapped in.)
+    if (typeof maplibregl.GlobeControl === "function") {
+      map.addControl(new maplibregl.GlobeControl(), "top-right");
+    }
+
+    map.on("error", (e) => {
+      console.error("Map error:", e && e.error ? e.error : e);
+    });
+  </script>
+</body>
+</html>

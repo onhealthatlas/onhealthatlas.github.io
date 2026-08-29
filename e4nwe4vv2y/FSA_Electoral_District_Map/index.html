@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FSA → Provincial Electoral District Verification Map</title>
+<title>FSA Overlay Tool</title>
 <link href="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
   :root{
     --ink:#1b2430;
-    --paper:#f7f8fa;
+    --paper:#0b1026;
     --line:#d7dbe0;
     --accent:#2b6cb0;
     --accent-dark:#1a4d85;
@@ -59,7 +59,7 @@
   }
 
   main { flex:1; display:flex; min-height:0; position: relative; }
-  #map { flex:1; height:100%; }
+  #map { flex:1; height:100%; background: #0b1026; }
 
   #panel {
     width: 320px; flex-shrink:0; border-left:1px solid var(--line); background:#fff;
@@ -95,16 +95,12 @@
 <div id="app">
   <header>
     <div class="titleblock">
-      <h1>FSA → Provincial Electoral District — Verification Map</h1>
+      <h1>FSA Overlay Tool</h1>
       <div class="sub">Search an FSA to see its boundary against the riding overlay. Drag to spin the globe.</div>
     </div>
     <div class="search-wrap">
-      <input id="fsaInput" placeholder="Type an FSA, e.g. L6P" autocomplete="off" maxlength="3" />
+      <input id="fsaInput" placeholder="Type an FSA, e.g. K0A" autocomplete="off" maxlength="3" />
       <div id="suggestions"></div>
-    </div>
-    <div class="legend-inline">
-      <span><span class="swatch" style="background:#1b2430;"></span>FSA boundary</span>
-      <span><span class="swatch" style="background:#c2571b;"></span>Close-call FSA (&lt;10pt margin)</span>
     </div>
     <button id="missingToggle" type="button">12 FSAs with no boundary ▾</button>
   </header>
@@ -117,7 +113,7 @@
       </div>
       <div id="missingList">
         <h2 style="margin-top:18px;">No boundary in StatCan file</h2>
-        <div class="empty-hint">These FSAs have no polygon in the source data (large-volume receivers or PO-box-only FSAs) and can't be plotted. Look them up by address instead.</div>
+        <div class="empty-hint">These FSAs have no polygon in the source data (large-volume receivers or PO-box-only FSAs) and can't be plotted.</div>
         <ul id="missingUl"></ul>
       </div>
     </div>
@@ -191,10 +187,8 @@ function renderPanel(props){
   const a = props.assigned_pct || 0;
   const r = props.runnerup_pct || 0;
   let noteHtml = '';
-  if (props.notes && props.notes.startsWith('Close split')){
-    noteHtml = `<div class="note-flag note-close">${props.notes} — worth a manual check.</div>`;
-  } else if (props.notes && props.notes.startsWith('Split')){
-    noteHtml = `<div class="note-flag" style="background:#eef3f8;color:#2b4a68;border:1px solid #cfe0ee;">${props.notes}</div>`;
+  if (props.ridings_touched >= 2){
+    noteHtml = `<div class="note-flag" style="background:#eef3f8;color:#2b4a68;border:1px solid #cfe0ee;">Split across multiple ridings</div>`;
   }
   panel.innerHTML = `
     <div class="fsa-code">${props.fsa}</div>
@@ -298,20 +292,12 @@ map.on('load', () => {
       'line-color': [
         'case',
         ['boolean', ['feature-state', 'selected'], false], '#0b1420',
-        ['get', 'close_call'], '#c2571b',
         '#1b2430'
       ],
       'line-width': [
         'case',
         ['boolean', ['feature-state', 'selected'], false], 3.2,
-        ['get', 'close_call'], 1.6,
         0.9
-      ],
-      'line-dasharray': [
-        'case',
-        ['boolean', ['feature-state', 'selected'], false], ['literal', [1, 0]],
-        ['get', 'close_call'], ['literal', [4, 3]],
-        ['literal', [1, 0]]
       ]
     }
   });

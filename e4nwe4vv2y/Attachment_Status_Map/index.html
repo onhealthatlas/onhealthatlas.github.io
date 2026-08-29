@@ -136,8 +136,8 @@
 <div id="panel">
   <div id="panel-header">
     <div>
-      <h1>Primary care attachment</h1>
-      <p>Ontario · by Forward Sortation Area &amp; provincial riding</p>
+      <h1>Ontario · Primary care attachment</h1>
+      <p>by Forward Sortation Area &amp; provincial riding</p>
     </div>
     <button id="collapse-btn" title="Collapse">–</button>
   </div>
@@ -185,7 +185,7 @@
 
     <details>
       <summary>About this data</summary>
-      <p>Attachment status reflects whether a person has a regular family physician or nurse practitioner on record, drawn from a Ministry of Health / ICES primary‑care dataset supplied for 2020 and 2022. The definition of attachment used here has not been formally endorsed by the Ministry, so figures may not exactly match other published sources.</p>
+      <p>Attachment status reflects whether a person has a regular family physician or nurse practitioner on record, drawn from a Ministry of Health / ICES primary‑care dataset supplied for 2020 and 2022.</p>
       <p>Riding‑level figures are estimated by summing the FSAs that fall mostly within each riding, based on a separate FSA‑to‑riding area conversion. Because FSAs don't align exactly with riding boundaries, these are close approximations rather than exact counts, and are most reliable for ridings made up of many FSAs.</p>
       <p>Values are hidden where the source data was blank or suppressed, typically because the underlying population was too small to report safely.</p>
     </details>
@@ -350,7 +350,7 @@
 
     const n2022 = props.overall_y2022_n_total;
     const smallSampleFlag = (n2022 !== null && n2022 !== undefined && n2022 < 500)
-      ? `<div class="pop-flag">⚠ Small underlying population (${fmtN(n2022)} people in 2022) — treat this figure with caution.</div>` : "";
+      ? `<div class="pop-flag">⚠ Small underlying population (${fmtN(n2022)} people in 2022)</div>` : "";
 
     const noData = !props.has_data
       ? `<div class="pop-note">No attachment data reported for this area.</div>`

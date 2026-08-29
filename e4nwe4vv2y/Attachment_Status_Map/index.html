@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ontario Primary Care Attachment Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+<!-- MapLibre GL JS (pinned version for stability) -->
+<link href="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.js"></script>
+
+<!-- PMTiles protocol handler, so MapLibre can read pmtiles:// vector sources directly from R2 -->
+<script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+
+<style>
+  :root{
+    --ink:#1c2530;
+    --ink-soft:#5b6572;
+    --line:#dde1e6;
+    --panel-bg:rgba(255,255,255,0.96);
+    --accent:#2a5c8a;
+    --radius:12px;
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  html, body, #map { height:100%; width:100%; margin:0; padding:0; background:#0b1026; }
+  #map { position:absolute; inset:0; }
+  .maplibregl-ctrl-attrib { font-size:10.5px; }
+
+  /* ---------- Control panel ---------- */
+  #panel{
+    position:absolute; top:14px; left:14px; z-index:5;
+    width:298px; max-width:calc(100vw - 28px);
+    background:var(--panel-bg);
+    backdrop-filter: blur(6px);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:0 6px 24px rgba(20,30,45,0.18);
+    color:var(--ink);
+    max-height:calc(100vh - 28px);
+    overflow-y:auto;
+  }
+  #panel-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 14px 10px 14px;
+  }
+  #panel-header h1{
+    font-size:14.5px; font-weight:650; margin:0 0 2px 0; letter-spacing:.1px;
+  }
+  #panel-header p{ margin:0; font-size:11.5px; color:var(--ink-soft); }
+  #collapse-btn{
+    border:none; background:transparent; color:var(--ink-soft); cursor:pointer;
+    font-size:16px; line-height:1; padding:4px 6px; border-radius:6px;
+  }
+  #collapse-btn:hover{ background:#eef1f4; }
+  #panel-body{ padding:0 14px 14px 14px; }
+  #panel.collapsed #panel-body{ display:none; }
+  #panel.collapsed{ width:auto; }
+
+  .section{ margin-top:12px; }
+  .section-label{
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-soft); margin-bottom:6px;
+  }
+  .seg{
+    display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  .seg button{
+    flex:1; border:none; background:#fff; color:var(--ink); font-size:12px;
+    padding:7px 4px; cursor:pointer; border-right:1px solid var(--line);
+    font-weight:500;
+  }
+  .seg button:last-child{ border-right:none; }
+  .seg button.active{ background:var(--accent); color:#fff; }
+  .seg button:hover:not(.active){ background:#f1f4f7; }
+  .seg.wrap{ flex-wrap:wrap; }
+  .seg.col3 button{ flex-basis:33.33%; }
+
+  #search{
+    width:100%; box-sizing:border-box; padding:7px 9px; font-size:12.5px;
+    border:1px solid var(--line); border-radius:8px; outline:none;
+  }
+  #search:focus{ border-color:var(--accent); }
+
+  /* ---------- Legend ---------- */
+  #legend-title{ font-size:11.5px; font-weight:600; margin-bottom:6px; }
+  #legend-bar{ height:10px; border-radius:5px; }
+  #legend-ticks{
+    display:flex; justify-content:space-between; font-size:10px; color:var(--ink-soft);
+    margin-top:4px;
+  }
+  #legend-caption{ font-size:10.5px; color:var(--ink-soft); margin-top:6px; line-height:1.4; }
+  .swatch-row{ display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--ink-soft); margin-top:5px;}
+  .swatch{ width:11px; height:11px; border-radius:3px; flex:none; }
+
+  details{ margin-top:12px; border-top:1px solid var(--line); padding-top:9px; }
+  summary{ font-size:11px; font-weight:600; color:var(--accent); cursor:pointer; list-style:none; }
+  summary::-webkit-details-marker{ display:none; }
+  summary:before{ content:"▸ "; }
+  details[open] summary:before{ content:"▾ "; }
+  details p{ font-size:11px; color:var(--ink-soft); line-height:1.45; margin:7px 0 0 0; }
+  details p + p{ margin-top:6px; }
+
+  /* ---------- Hover tooltip ---------- */
+  #tooltip{
+    position:absolute; z-index:6; pointer-events:none; display:none;
+    background:rgba(28,37,48,0.92); color:#fff; font-size:11.5px;
+    padding:5px 9px; border-radius:6px; max-width:220px;
+    transform:translate(-50%,-130%);
+  }
+  #tooltip b{ font-weight:650; }
+
+  /* ---------- Click popup ---------- */
+  .maplibregl-popup-content{
+    padding:13px 15px; border-radius:10px; box-shadow:0 8px 24px rgba(20,30,45,0.25);
+    font-family:inherit; color:var(--ink);
+  }
+  .pop-title{ font-size:13.5px; font-weight:700; margin:0 0 1px 0; }
+  .pop-sub{ font-size:11px; color:var(--ink-soft); margin:0 0 9px 0; }
+  table.pop-table{ border-collapse:collapse; font-size:11.5px; width:100%; }
+  table.pop-table th, table.pop-table td{ padding:3px 6px; text-align:right; }
+  table.pop-table th:first-child, table.pop-table td:first-child{ text-align:left; padding-left:0; }
+  table.pop-table thead th{ color:var(--ink-soft); font-weight:600; border-bottom:1px solid var(--line); }
+  table.pop-table tbody tr:not(:last-child) td{ border-bottom:1px solid #f0f2f4; }
+  .pop-flag{ font-size:10.5px; color:#a45a00; margin-top:8px; line-height:1.4; }
+  .pop-note{ font-size:10.5px; color:var(--ink-soft); margin-top:8px; line-height:1.4; }
+
+  @media (max-width:560px){
+    #panel{ width:calc(100vw - 24px); }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="tooltip"></div>
+
+<div id="panel">
+  <div id="panel-header">
+    <div>
+      <h1>Primary care attachment</h1>
+      <p>Ontario · by Forward Sortation Area &amp; provincial riding</p>
+    </div>
+    <button id="collapse-btn" title="Collapse">–</button>
+  </div>
+  <div id="panel-body">
+
+    <div class="section">
+      <div class="section-label">Geography</div>
+      <div class="seg" id="ctrl-geo">
+        <button data-val="fsa" class="active">FSA</button>
+        <button data-val="ed">Provincial riding</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Population</div>
+      <div class="seg wrap" id="ctrl-age">
+        <button data-val="overall" class="active">All ages</button>
+        <button data-val="children">0–17</button>
+        <button data-val="adults">18+</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">View</div>
+      <div class="seg col3" id="ctrl-year">
+        <button data-val="2020" class="active">2020</button>
+        <button data-val="2022">2022</button>
+        <button data-val="change">Change</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Find an area</div>
+      <input id="search" type="text" list="area-list" placeholder="FSA code or riding name…" autocomplete="off" />
+      <datalist id="area-list"></datalist>
+    </div>
+
+    <div class="section">
+      <div id="legend-title">% attached to a primary care provider</div>
+      <div id="legend-bar"></div>
+      <div id="legend-ticks"></div>
+      <div class="swatch-row"><span class="swatch" style="background:#d9d9d9"></span><span>No data / suppressed (small population)</span></div>
+      <div id="legend-caption"></div>
+    </div>
+
+    <details>
+      <summary>About this data</summary>
+      <p>Attachment status reflects whether a person has a regular family physician or nurse practitioner on record, drawn from a Ministry of Health / ICES primary‑care dataset supplied for 2020 and 2022. The definition of attachment used here has not been formally endorsed by the Ministry, so figures may not exactly match other published sources.</p>
+      <p>Riding‑level figures are estimated by summing the FSAs that fall mostly within each riding, based on a separate FSA‑to‑riding area conversion. Because FSAs don't align exactly with riding boundaries, these are close approximations rather than exact counts, and are most reliable for ridings made up of many FSAs.</p>
+      <p>Values are hidden where the source data was blank or suppressed, typically because the underlying population was too small to report safely.</p>
+    </details>
+  </div>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Basemap setup (unchanged from the existing globe project)
+  // ---------------------------------------------------------------
+  const protocol = new pmtiles.Protocol();
+  maplibregl.addProtocol("pmtiles", protocol.tile);
+
+  const ONTARIO_BOUNDS = [[-96.5, 41.3], [-73.5, 57.6]];
+
+  const map = new maplibregl.Map({
+    container: "map",
+    style: "style.json",
+    bounds: ONTARIO_BOUNDS,
+    fitBoundsOptions: { padding: 30 },
+    pitch: 0,
+    bearing: 0,
+    hash: true,
+    attributionControl: {
+      compact: true,
+      customAttribution: [
+        "FSA boundaries \u00a9 Statistics Canada, 2021 Census",
+        "Riding boundaries \u00a9 Elections Ontario",
+        "Attachment data: Ontario MOH / ICES primary care dataset"
+      ]
+    }
+  });
+
+  map.on("style.load", () => map.setProjection({ type: "globe" }));
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+  map.addControl(new maplibregl.FullscreenControl(), "top-right");
+  map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
+  if (typeof maplibregl.GlobeControl === "function") {
+    map.addControl(new maplibregl.GlobeControl(), "top-right");
+  }
+  map.on("error", (e) => console.error("Map error:", e && e.error ? e.error : e));
+
+  // ---------------------------------------------------------------
+  // Colour scale
+  // ---------------------------------------------------------------
+  const RAMP = ["#d73027","#fc8d59","#fee08b","#ffffbf","#d9ef8b","#91cf60","#1a9850"];
+  const NODATA_COLOR = "#d9d9d9";
+
+  const LEVEL_STOPS  = [50, 60, 70, 80, 88, 94, 100];      // % attached
+  const CHANGE_STOPS = [-12, -8, -4, 0, 4, 8, 12];         // percentage-point change 2020→2022
+
+  function interpExpr(propKey, stops) {
+    const seq = ["interpolate", ["linear"], ["get", propKey]];
+    stops.forEach((s, i) => seq.push(s, RAMP[i]));
+    return ["case", ["==", ["get", propKey], null], NODATA_COLOR, seq];
+  }
+
+  function legendGradientCSS(stops) {
+    const min = stops[0], max = stops[stops.length - 1], span = max - min;
+    const parts = stops.map((s, i) => `${RAMP[i]} ${((s - min) / span * 100).toFixed(1)}%`);
+    return `linear-gradient(90deg, ${parts.join(", ")})`;
+  }
+
+  // ---------------------------------------------------------------
+  // State + property helpers
+  // ---------------------------------------------------------------
+  const state = { geo: "fsa", age: "overall", year: "2020" };
+
+  function propKey() {
+    return state.year === "change"
+      ? `${state.age}_change_pct_attached`
+      : `${state.age}_y${state.year}_pct_attached`;
+  }
+
+  const AGE_LABEL = { overall: "all ages", children: "children & youth (0–17)", adults: "adults (18+)" };
+
+  function updateLegend() {
+    const key = propKey();
+    const isChange = state.year === "change";
+    const stops = isChange ? CHANGE_STOPS : LEVEL_STOPS;
+    document.getElementById("legend-title").textContent = isChange
+      ? `Change in % attached, 2020 → 2022 (${AGE_LABEL[state.age]})`
+      : `% attached to a primary care provider, ${state.year} (${AGE_LABEL[state.age]})`;
+    document.getElementById("legend-bar").style.background = legendGradientCSS(stops);
+    const ticksEl = document.getElementById("legend-ticks");
+    ticksEl.innerHTML = "";
+    [stops[0], stops[Math.floor(stops.length/2)], stops[stops.length-1]].forEach(v => {
+      const span = document.createElement("span");
+      span.textContent = (isChange && v > 0 ? "+" : "") + v + (isChange ? " pts" : "%");
+      ticksEl.appendChild(span);
+    });
+    document.getElementById("legend-caption").textContent = isChange
+      ? "Blue-green = attachment improved · red = attachment declined."
+      : "Red = lower attachment · green = higher attachment.";
+    return key;
+  }
+
+  function applyStyle() {
+    const key = updateLegend();
+    ["fsa", "ed"].forEach(g => {
+      if (!map.getLayer(`${g}-fill`)) return;
+      map.setPaintProperty(`${g}-fill`, "fill-color", interpExpr(key, state.year === "change" ? CHANGE_STOPS : LEVEL_STOPS));
+      map.setLayoutProperty(`${g}-fill`, "visibility", g === state.geo ? "visible" : "none");
+      map.setLayoutProperty(`${g}-outline`, "visibility", g === state.geo ? "visible" : "none");
+      map.setLayoutProperty(`${g}-hover-outline`, "visibility", g === state.geo ? "visible" : "none");
+    });
+    buildSearchList();
+  }
+
+  // ---------------------------------------------------------------
+  // Segmented controls
+  // ---------------------------------------------------------------
+  function wireSeg(id, stateKey, after) {
+    const el = document.getElementById(id);
+    el.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      state[stateKey] = btn.dataset.val;
+      [...el.children].forEach(b => b.classList.toggle("active", b === btn));
+      applyStyle();
+      if (after) after();
+    });
+  }
+  wireSeg("ctrl-geo", "geo");
+  wireSeg("ctrl-age", "age");
+  wireSeg("ctrl-year", "year");
+
+  document.getElementById("collapse-btn").addEventListener("click", () => {
+    const panel = document.getElementById("panel");
+    panel.classList.toggle("collapsed");
+    document.getElementById("collapse-btn").textContent = panel.classList.contains("collapsed") ? "+" : "–";
+  });
+
+  // ---------------------------------------------------------------
+  // Data loading + layers
+  // ---------------------------------------------------------------
+  let fsaData = null, edData = null;
+
+  function fmtPct(v) { return v === null || v === undefined ? "—" : v.toFixed(1) + "%"; }
+  function fmtN(v) { return v === null || v === undefined ? "—" : Math.round(v).toLocaleString(); }
+  function fmtChange(a, b) {
+    if (a === null || a === undefined || b === null || b === undefined) return "—";
+    const d = b - a;
+    return (d > 0 ? "+" : "") + d.toFixed(1) + " pts";
+  }
+
+  function popupHTML(props, geo) {
+    const title = geo === "fsa" ? props.fsa : props.name;
+    const sub = geo === "fsa"
+      ? `Riding: ${props.electoral_district || "—"}`
+      : `Estimated from ${props.overall_y2022_fsa_with_data ?? "—"} of ${props.overall_y2022_fsa_count ?? "—"} FSAs with reportable data`;
+
+    const rows = [
+      ["All ages", "overall"],
+      ["Children & youth (0–17)", "children"],
+      ["Adults (18+)", "adults"]
+    ].map(([label, ds]) => {
+      const p20 = props[`${ds}_y2020_pct_attached`];
+      const p22 = props[`${ds}_y2022_pct_attached`];
+      return `<tr><td>${label}</td><td>${fmtPct(p20)}</td><td>${fmtPct(p22)}</td><td>${fmtChange(p20, p22)}</td></tr>`;
+    }).join("");
+
+    const n2022 = props.overall_y2022_n_total;
+    const smallSampleFlag = (n2022 !== null && n2022 !== undefined && n2022 < 500)
+      ? `<div class="pop-flag">⚠ Small underlying population (${fmtN(n2022)} people in 2022) — treat this figure with caution.</div>` : "";
+
+    const noData = !props.has_data
+      ? `<div class="pop-note">No attachment data reported for this area.</div>`
+      : "";
+
+    return `
+      <div class="pop-title">${title}</div>
+      <div class="pop-sub">${sub}</div>
+      ${props.has_data ? `
+      <table class="pop-table">
+        <thead><tr><th>Attached</th><th>2020</th><th>2022</th><th>Change</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>` : ""}
+      ${smallSampleFlag}${noData}
+    `;
+  }
+
+  function addGeoLayer(id, data) {
+    map.addSource(id, { type: "geojson", data, generateId: true });
+    map.addLayer({
+      id: `${id}-fill`, type: "fill", source: id,
+      paint: { "fill-color": NODATA_COLOR, "fill-opacity": ["case", ["==", ["get", "has_data"], true], 0.82, 0.45] },
+      layout: { visibility: id === state.geo ? "visible" : "none" }
+    });
+    map.addLayer({
+      id: `${id}-outline`, type: "line", source: id,
+      paint: { "line-color": "rgba(28,37,48,0.35)", "line-width": 0.6 },
+      layout: { visibility: id === state.geo ? "visible" : "none" }
+    });
+    map.addLayer({
+      id: `${id}-hover-outline`, type: "line", source: id,
+      paint: {
+        "line-color": "#1c2530",
+        "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2, 0]
+      },
+      layout: { visibility: id === state.geo ? "visible" : "none" }
+    });
+
+    let hoveredId = null;
+    const tooltip = document.getElementById("tooltip");
+
+    map.on("mousemove", `${id}-fill`, (e) => {
+      if (!e.features.length) return;
+      map.getCanvas().style.cursor = "pointer";
+      if (hoveredId !== null) map.setFeatureState({ source: id, id: hoveredId }, { hover: false });
+      hoveredId = e.features[0].id;
+      map.setFeatureState({ source: id, id: hoveredId }, { hover: true });
+
+      const props = e.features[0].properties;
+      const key = propKey();
+      const val = props[key];
+      const label = id === "fsa" ? props.fsa : props.name;
+      const valTxt = (val === null || val === undefined) ? "no data" :
+        (state.year === "change" ? fmtChange(0, val).replace("+0.0 pts","0.0 pts") : val.toFixed(1) + "%");
+      tooltip.style.display = "block";
+      tooltip.style.left = e.point.x + "px";
+      tooltip.style.top = e.point.y + "px";
+      tooltip.innerHTML = `<b>${label}</b><br>${valTxt}`;
+    });
+
+    map.on("mouseleave", `${id}-fill`, () => {
+      map.getCanvas().style.cursor = "";
+      if (hoveredId !== null) map.setFeatureState({ source: id, id: hoveredId }, { hover: false });
+      hoveredId = null;
+      tooltip.style.display = "none";
+    });
+
+    map.on("click", `${id}-fill`, (e) => {
+      if (!e.features.length) return;
+      new maplibregl.Popup({ maxWidth: "300px" })
+        .setLngLat(e.lngLat)
+        .setHTML(popupHTML(e.features[0].properties, id))
+        .addTo(map);
+    });
+  }
+
+  function buildSearchList() {
+    const list = document.getElementById("area-list");
+    list.innerHTML = "";
+    const src = state.geo === "fsa" ? fsaData : edData;
+    if (!src) return;
+    src.features.forEach(f => {
+      const opt = document.createElement("option");
+      opt.value = state.geo === "fsa" ? `${f.properties.fsa} — ${f.properties.electoral_district}` : f.properties.name;
+      list.appendChild(opt);
+    });
+  }
+
+  function bboxOf(feature) {
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    (function walk(c){
+      if (typeof c[0] === "number") {
+        minX=Math.min(minX,c[0]); maxX=Math.max(maxX,c[0]);
+        minY=Math.min(minY,c[1]); maxY=Math.max(maxY,c[1]);
+      } else { c.forEach(walk); }
+    })(feature.geometry.coordinates);
+    return [[minX,minY],[maxX,maxY]];
+  }
+
+  document.getElementById("search").addEventListener("change", (e) => {
+    const q = e.target.value.trim();
+    if (!q) return;
+    const src = state.geo === "fsa" ? fsaData : edData;
+    if (!src) return;
+    const match = src.features.find(f => {
+      const label = state.geo === "fsa" ? `${f.properties.fsa} — ${f.properties.electoral_district}` : f.properties.name;
+      return label.toLowerCase() === q.toLowerCase() ||
+             (state.geo === "fsa" && f.properties.fsa.toLowerCase() === q.toLowerCase());
+    });
+    if (!match) return;
+    const bounds = bboxOf(match);
+    map.fitBounds(bounds, { padding: 60, maxZoom: 10, duration: 800 });
+    const center = [(bounds[0][0]+bounds[1][0])/2, (bounds[0][1]+bounds[1][1])/2];
+    window.setTimeout(() => {
+      new maplibregl.Popup({ maxWidth: "300px" })
+        .setLngLat(center)
+        .setHTML(popupHTML(match.properties, state.geo))
+        .addTo(map);
+    }, 850);
+  });
+
+  Promise.all([
+    fetch("data/fsa_attachment.geojson").then(r => r.json()),
+    fetch("data/ed_attachment.geojson").then(r => r.json())
+  ]).then(([fsa, ed]) => {
+    fsaData = fsa; edData = ed;
+    const ready = () => {
+      addGeoLayer("fsa", fsaData);
+      addGeoLayer("ed", edData);
+      applyStyle();
+    };
+    if (map.isStyleLoaded()) ready(); else map.once("load", ready);
+  }).catch(err => console.error("Failed to load attachment data:", err));
+</script>
+</body>
+</html>

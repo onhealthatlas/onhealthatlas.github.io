@@ -27,10 +27,20 @@
   .maplibregl-ctrl-attrib { font-size:12px; }
 
   /* ---------- Language control ---------- */
+  /* Explicit sizing/rounding (not left to the external maplibre-gl.css load timing),
+     matched to MapLibre's own standard 29x29 control-button footprint so this sits
+     flush with the Globe toggle above it. */
+  .lang-ctrl{
+    border-radius:4px;
+    overflow:hidden;
+    background:#fff;
+    box-shadow:0 0 0 2px rgba(0,0,0,0.1);
+  }
   .lang-ctrl button{
-    display:block; width:auto !important; height:29px; padding:0 10px;
-    font:600 12px -apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink);
-    background:#fff; border:none; cursor:pointer; white-space:nowrap;
+    display:flex; align-items:center; justify-content:center;
+    width:29px; height:29px; padding:0; margin:0;
+    font:700 11px -apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink);
+    background:#fff; border:none; cursor:pointer;
   }
   .lang-ctrl button:hover{ background:#f1f4f7; }
 
@@ -244,8 +254,8 @@
       legendTitleChangeUnattached: (age) => `Change in % unattached, 2020 → 2022 (${age})`,
       legendCaptionLevelAttached: "Red = lower attachment · green = higher attachment.",
       legendCaptionLevelUnattached: "Green = lower unattachment · red = higher unattachment.",
-      legendCaptionChangeAttached: "Blue-green = attachment improved · red = attachment declined.",
-      legendCaptionChangeUnattached: "Blue-green = unattachment declined (improved) · red = unattachment increased.",
+      legendCaptionChangeAttached: "Green = attachment improved · red = attachment declined.",
+      legendCaptionChangeUnattached: "Green = unattachment declined (improved) · red = unattachment increased.",
       popRidingPrefix: "Riding: ",
       popEstimatedFrom: (n, m) => `Estimated from ${n} of ${m} FSAs with reportable data`,
       popRowAll: "All ages",
@@ -285,8 +295,8 @@
       legendTitleChangeUnattached: (age) => `Évolution du % de personnes non rattachées, 2020 → 2022 (${age})`,
       legendCaptionLevelAttached: "Rouge = rattachement plus faible · vert = rattachement plus élevé.",
       legendCaptionLevelUnattached: "Vert = non-rattachement plus faible · rouge = non-rattachement plus élevé.",
-      legendCaptionChangeAttached: "Bleu-vert = amélioration du rattachement · rouge = recul du rattachement.",
-      legendCaptionChangeUnattached: "Bleu-vert = recul du non-rattachement (amélioration) · rouge = hausse du non-rattachement.",
+      legendCaptionChangeAttached: "Vert = amélioration du rattachement · rouge = recul du rattachement.",
+      legendCaptionChangeUnattached: "Vert = recul du non-rattachement (amélioration) · rouge = hausse du non-rattachement.",
       popRidingPrefix: "Circonscription : ",
       popEstimatedFrom: (n, m) => `Estimation basée sur ${n} des ${m} RTA disposant de données déclarables`,
       popRowAll: "Tous âges",
@@ -335,10 +345,12 @@
       this._container.className = "maplibregl-ctrl maplibregl-ctrl-group lang-ctrl";
       this._button = document.createElement("button");
       this._button.type = "button";
-      this._button.textContent = "Français"; // shows the language you can SWITCH TO
+      this._button.textContent = "FR"; // shows the language you can SWITCH TO
+      this._button.title = "Français";
       this._button.addEventListener("click", () => {
         state.lang = state.lang === "en" ? "fr" : "en";
-        this._button.textContent = state.lang === "en" ? "Français" : "English";
+        this._button.textContent = state.lang === "en" ? "FR" : "EN";
+        this._button.title = state.lang === "en" ? "Français" : "English";
         applyTexts();
       });
       this._container.appendChild(this._button);

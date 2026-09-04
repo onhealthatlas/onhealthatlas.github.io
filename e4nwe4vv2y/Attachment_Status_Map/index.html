@@ -24,7 +24,15 @@
   }
   html, body, #map { height:100%; width:100%; margin:0; padding:0; background:#0b1026; }
   #map { position:absolute; inset:0; }
-  .maplibregl-ctrl-attrib { font-size:10.5px; }
+  .maplibregl-ctrl-attrib { font-size:12px; }
+
+  /* ---------- Language control ---------- */
+  .lang-ctrl button{
+    display:block; width:auto !important; height:29px; padding:0 10px;
+    font:600 12px -apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink);
+    background:#fff; border:none; cursor:pointer; white-space:nowrap;
+  }
+  .lang-ctrl button:hover{ background:#f1f4f7; }
 
   /* ---------- Control panel ---------- */
   #panel{
@@ -92,13 +100,15 @@
   .swatch-row{ display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--ink-soft); margin-top:5px;}
   .swatch{ width:11px; height:11px; border-radius:3px; flex:none; }
 
-  details{ margin-top:12px; border-top:1px solid var(--line); padding-top:9px; }
-  summary{ font-size:11px; font-weight:600; color:var(--accent); cursor:pointer; list-style:none; }
-  summary::-webkit-details-marker{ display:none; }
-  summary:before{ content:"▸ "; }
-  details[open] summary:before{ content:"▾ "; }
-  details p{ font-size:11px; color:var(--ink-soft); line-height:1.45; margin:7px 0 0 0; }
-  details p + p{ margin-top:6px; }
+  /* Scoped to our own panel only, so this never leaks onto MapLibre's own
+     <details>/<summary>-based attribution control button. */
+  #panel details{ margin-top:12px; border-top:1px solid var(--line); padding-top:9px; }
+  #panel summary{ font-size:11px; font-weight:600; color:var(--accent); cursor:pointer; list-style:none; }
+  #panel summary::-webkit-details-marker{ display:none; }
+  #panel summary:before{ content:"▸ "; }
+  #panel details[open] summary:before{ content:"▾ "; }
+  #panel details p{ font-size:11px; color:var(--ink-soft); line-height:1.45; margin:7px 0 0 0; }
+  #panel details p + p{ margin-top:6px; }
 
   /* ---------- Hover tooltip ---------- */
   #tooltip{
@@ -136,41 +146,49 @@
 <div id="panel">
   <div id="panel-header">
     <div>
-      <h1>Ontario · Primary care attachment</h1>
-      <p>by Forward Sortation Area &amp; provincial riding</p>
+      <h1 data-i18n="title">Ontario · Primary care attachment</h1>
+      <p data-i18n="subtitle">by Forward Sortation Area &amp; provincial riding</p>
     </div>
     <button id="collapse-btn" title="Collapse">–</button>
   </div>
   <div id="panel-body">
 
     <div class="section">
-      <div class="section-label">Geography</div>
-      <div class="seg" id="ctrl-geo">
-        <button data-val="fsa" class="active">FSA</button>
-        <button data-val="ed">Provincial riding</button>
+      <div class="section-label" data-i18n="sectionMapMode">Map mode</div>
+      <div class="seg" id="ctrl-metric">
+        <button data-val="attached" class="active" data-i18n="metricAttached">Attached</button>
+        <button data-val="unattached" data-i18n="metricUnattached">Unattached</button>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-label">Population</div>
+      <div class="section-label" data-i18n="sectionGeo">Geography</div>
+      <div class="seg" id="ctrl-geo">
+        <button data-val="fsa" class="active" data-i18n="geoFsa">FSA</button>
+        <button data-val="ed" data-i18n="geoEd">Provincial riding</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label" data-i18n="sectionPop">Population</div>
       <div class="seg wrap" id="ctrl-age">
-        <button data-val="overall" class="active">All ages</button>
+        <button data-val="overall" class="active" data-i18n="popAll">All ages</button>
         <button data-val="children">0–17</button>
         <button data-val="adults">18+</button>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-label">View</div>
+      <div class="section-label" data-i18n="sectionView">View</div>
       <div class="seg col3" id="ctrl-year">
         <button data-val="2020" class="active">2020</button>
         <button data-val="2022">2022</button>
-        <button data-val="change">Change</button>
+        <button data-val="change" data-i18n="viewChange">Change</button>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-label">Find an area</div>
+      <div class="section-label" data-i18n="sectionSearch">Find an area</div>
       <input id="search" type="text" list="area-list" placeholder="FSA code or riding name…" autocomplete="off" />
       <datalist id="area-list"></datalist>
     </div>
@@ -179,20 +197,108 @@
       <div id="legend-title">% attached to a primary care provider</div>
       <div id="legend-bar"></div>
       <div id="legend-ticks"></div>
-      <div class="swatch-row"><span class="swatch" style="background:#d9d9d9"></span><span>No data / suppressed (small population)</span></div>
+      <div class="swatch-row"><span class="swatch" style="background:#d9d9d9"></span><span data-i18n="legendNoData">No data / suppressed (small population)</span></div>
       <div id="legend-caption"></div>
     </div>
 
     <details>
-      <summary>About this data</summary>
-      <p>Attachment status reflects whether a person has a regular family physician or nurse practitioner on record, drawn from a Ministry of Health / ICES primary‑care dataset supplied for 2020 and 2022.</p>
-      <p>Riding‑level figures are estimated by summing the FSAs that fall mostly within each riding, based on a separate FSA‑to‑riding area conversion. Because FSAs don't align exactly with riding boundaries, these are close approximations rather than exact counts, and are most reliable for ridings made up of many FSAs.</p>
-      <p>Values are hidden where the source data was blank or suppressed, typically because the underlying population was too small to report safely.</p>
+      <summary data-i18n="aboutSummary">About this data</summary>
+      <p data-i18n="aboutP1">Attachment status reflects whether a person has a regular family physician or nurse practitioner on record, drawn from a  dataset supplied for 2020 and 2022.</p>
+      <p data-i18n="aboutP2">Riding‑level figures are estimated by summing the FSAs that fall mostly within each riding, based on a separate FSA‑to‑riding area conversion. Because FSAs don't align exactly with riding boundaries, these are close approximations rather than exact counts, and are most reliable for ridings made up of many FSAs.</p>
+      <p data-i18n="aboutP3">Values are hidden where the source data was blank or suppressed, typically because the underlying population was too small to report safely.</p>
     </details>
   </div>
 </div>
 
 <script>
+  // ---------------------------------------------------------------
+  // Translations
+  // ---------------------------------------------------------------
+  const T = {
+    en: {
+      title: "Ontario · Primary care attachment",
+      subtitle: "by Forward Sortation Area & provincial riding",
+      collapseTitle: "Collapse",
+      expandTitle: "Expand",
+      sectionMapMode: "Map mode",
+      metricAttached: "Attached",
+      metricUnattached: "Unattached",
+      sectionGeo: "Geography",
+      geoFsa: "FSA",
+      geoEd: "Provincial riding",
+      sectionPop: "Population",
+      popAll: "All ages",
+      sectionView: "View",
+      viewChange: "Change",
+      sectionSearch: "Find an area",
+      searchPlaceholder: "FSA code or riding name…",
+      legendNoData: "No data / suppressed (small population)",
+      aboutSummary: "About this data",
+      aboutP1: "Attachment status reflects whether a person has a regular family physician or nurse practitioner on record, drawn from a  dataset supplied for 2020 and 2022.",
+      aboutP2: "Riding‑level figures are estimated by summing the FSAs that fall mostly within each riding, based on a separate FSA‑to‑riding area conversion. Because FSAs don't align exactly with riding boundaries, these are close approximations rather than exact counts, and are most reliable for ridings made up of many FSAs.",
+      aboutP3: "Values are hidden where the source data was blank or suppressed, typically because the underlying population was too small to report safely.",
+      ageLabel: { overall: "all ages", children: "children & youth (0–17)", adults: "adults (18+)" },
+      legendTitleLevelAttached: (year, age) => `% attached to a primary care provider, ${year} (${age})`,
+      legendTitleLevelUnattached: (year, age) => `% unattached to a primary care provider, ${year} (${age})`,
+      legendTitleChangeAttached: (age) => `Change in % attached, 2020 → 2022 (${age})`,
+      legendTitleChangeUnattached: (age) => `Change in % unattached, 2020 → 2022 (${age})`,
+      legendCaptionLevelAttached: "Red = lower attachment · green = higher attachment.",
+      legendCaptionLevelUnattached: "Green = lower unattachment · red = higher unattachment.",
+      legendCaptionChangeAttached: "Blue-green = attachment improved · red = attachment declined.",
+      legendCaptionChangeUnattached: "Blue-green = unattachment declined (improved) · red = unattachment increased.",
+      popRidingPrefix: "Riding: ",
+      popEstimatedFrom: (n, m) => `Estimated from ${n} of ${m} FSAs with reportable data`,
+      popRowAll: "All ages",
+      popRowChildren: "Children & youth (0–17)",
+      popRowAdults: "Adults (18+)",
+      popColChange: "Change",
+      popSmallSample: (n) => `⚠ Small underlying population (${n} people in 2022)`,
+      popNoData: "No attachment data reported for this area.",
+      tooltipNoData: "no data"
+    },
+    fr: {
+      title: "Ontario · Rattachement aux soins primaires",
+      subtitle: "par région de tri d'acheminement (RTA) et circonscription provinciale",
+      collapseTitle: "Réduire",
+      expandTitle: "Agrandir",
+      sectionMapMode: "Mode de la carte",
+      metricAttached: "Rattaché",
+      metricUnattached: "Non rattaché",
+      sectionGeo: "Géographie",
+      geoFsa: "RTA",
+      geoEd: "Circonscription provinciale",
+      sectionPop: "Population",
+      popAll: "Tous âges",
+      sectionView: "Affichage",
+      viewChange: "Évolution",
+      sectionSearch: "Rechercher un secteur",
+      searchPlaceholder: "Code RTA ou nom de circonscription…",
+      legendNoData: "Aucune donnée / supprimée (population restreinte)",
+      aboutSummary: "À propos de ces données",
+      aboutP1: "Le statut de rattachement indique si une personne a un médecin de famille ou une infirmière praticienne attitré à son dossier, à partir d'un ensemble de données fourni pour 2020 et 2022.",
+      aboutP2: "Les chiffres par circonscription sont estimés en additionnant les RTA qui se trouvent en grande partie dans chaque circonscription, à partir d'une conversion distincte RTA-vers-circonscription fondée sur la superficie. Comme les RTA ne correspondent pas exactement aux limites des circonscriptions, il s'agit d'approximations plutôt que de chiffres exacts, plus fiables pour les circonscriptions comportant de nombreuses RTA.",
+      aboutP3: "Les valeurs sont masquées lorsque les données sources étaient vides ou supprimées, généralement parce que la population sous-jacente était trop restreinte pour être déclarée de façon sécuritaire.",
+      ageLabel: { overall: "tous âges", children: "enfants et jeunes (0–17 ans)", adults: "adultes (18 ans et plus)" },
+      legendTitleLevelAttached: (year, age) => `% de personnes rattachées à un fournisseur de soins primaires, ${year} (${age})`,
+      legendTitleLevelUnattached: (year, age) => `% de personnes non rattachées à un fournisseur de soins primaires, ${year} (${age})`,
+      legendTitleChangeAttached: (age) => `Évolution du % de personnes rattachées, 2020 → 2022 (${age})`,
+      legendTitleChangeUnattached: (age) => `Évolution du % de personnes non rattachées, 2020 → 2022 (${age})`,
+      legendCaptionLevelAttached: "Rouge = rattachement plus faible · vert = rattachement plus élevé.",
+      legendCaptionLevelUnattached: "Vert = non-rattachement plus faible · rouge = non-rattachement plus élevé.",
+      legendCaptionChangeAttached: "Bleu-vert = amélioration du rattachement · rouge = recul du rattachement.",
+      legendCaptionChangeUnattached: "Bleu-vert = recul du non-rattachement (amélioration) · rouge = hausse du non-rattachement.",
+      popRidingPrefix: "Circonscription : ",
+      popEstimatedFrom: (n, m) => `Estimation basée sur ${n} des ${m} RTA disposant de données déclarables`,
+      popRowAll: "Tous âges",
+      popRowChildren: "Enfants et jeunes (0–17 ans)",
+      popRowAdults: "Adultes (18 ans et plus)",
+      popColChange: "Évolution",
+      popSmallSample: (n) => `⚠ Population sous-jacente restreinte (${n} personnes en 2022)`,
+      popNoData: "Aucune donnée de rattachement déclarée pour ce secteur.",
+      tooltipNoData: "aucune donnée"
+    }
+  };
+
   // ---------------------------------------------------------------
   // Basemap setup (unchanged from the existing globe project)
   // ---------------------------------------------------------------
@@ -216,11 +322,35 @@
 
   map.on("style.load", () => map.setProjection({ type: "globe" }));
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-  map.addControl(new maplibregl.FullscreenControl(), "top-right");
   map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
   if (typeof maplibregl.GlobeControl === "function") {
     map.addControl(new maplibregl.GlobeControl(), "top-right");
   }
+
+  // ---- Language toggle control (top-right) ----
+  class LanguageControl {
+    onAdd(mapInstance) {
+      this._map = mapInstance;
+      this._container = document.createElement("div");
+      this._container.className = "maplibregl-ctrl maplibregl-ctrl-group lang-ctrl";
+      this._button = document.createElement("button");
+      this._button.type = "button";
+      this._button.textContent = "Français"; // shows the language you can SWITCH TO
+      this._button.addEventListener("click", () => {
+        state.lang = state.lang === "en" ? "fr" : "en";
+        this._button.textContent = state.lang === "en" ? "Français" : "English";
+        applyTexts();
+      });
+      this._container.appendChild(this._button);
+      return this._container;
+    }
+    onRemove() {
+      this._container.parentNode && this._container.parentNode.removeChild(this._container);
+      this._map = undefined;
+    }
+  }
+  map.addControl(new LanguageControl(), "top-right");
+
   map.on("error", (e) => console.error("Map error:", e && e.error ? e.error : e));
 
   // ---------------------------------------------------------------
@@ -229,65 +359,122 @@
   const RAMP = ["#d73027","#fc8d59","#fee08b","#ffffbf","#d9ef8b","#91cf60","#1a9850"];
   const NODATA_COLOR = "#d9d9d9";
 
-  const LEVEL_STOPS  = [50, 60, 70, 80, 88, 94, 100];      // % attached
-  const CHANGE_STOPS = [-12, -8, -4, 0, 4, 8, 12];         // percentage-point change 2020→2022
+  const LEVEL_STOPS           = [50, 60, 70, 80, 88, 94, 100];  // % attached
+  const UNATTACHED_LEVEL_STOPS = [0, 6, 12, 20, 30, 40, 50];    // % unattached (mirror of the above)
+  const CHANGE_STOPS          = [-12, -8, -4, 0, 4, 8, 12];     // percentage-point change 2020→2022
 
-  function interpExpr(propKey, stops) {
-    const seq = ["interpolate", ["linear"], ["get", propKey]];
-    stops.forEach((s, i) => seq.push(s, RAMP[i]));
-    return ["case", ["==", ["get", propKey], null], NODATA_COLOR, seq];
+  function getColorExpr() {
+    const isChange = state.year === "change";
+    const invert = state.metric === "unattached";
+    const ramp = invert ? [...RAMP].reverse() : RAMP;
+
+    if (isChange) {
+      const rawKey = `${state.age}_change_pct_attached`;
+      const valueGet = ["get", rawKey];
+      const valueForScale = invert ? ["-", 0, valueGet] : valueGet;
+      const seq = ["interpolate", ["linear"], valueForScale];
+      CHANGE_STOPS.forEach((s, i) => seq.push(s, ramp[i]));
+      return ["case", ["==", valueGet, null], NODATA_COLOR, seq];
+    } else {
+      const rawKey = invert
+        ? `${state.age}_y${state.year}_pct_unattached`
+        : `${state.age}_y${state.year}_pct_attached`;
+      const valueGet = ["get", rawKey];
+      const stops = invert ? UNATTACHED_LEVEL_STOPS : LEVEL_STOPS;
+      const seq = ["interpolate", ["linear"], valueGet];
+      stops.forEach((s, i) => seq.push(s, ramp[i]));
+      return ["case", ["==", valueGet, null], NODATA_COLOR, seq];
+    }
   }
 
-  function legendGradientCSS(stops) {
+  function getCurrentValue(props) {
+    if (state.year === "change") {
+      const raw = props[`${state.age}_change_pct_attached`];
+      if (raw === null || raw === undefined) return null;
+      return state.metric === "attached" ? raw : -raw;
+    } else {
+      const key = state.metric === "attached"
+        ? `${state.age}_y${state.year}_pct_attached`
+        : `${state.age}_y${state.year}_pct_unattached`;
+      const v = props[key];
+      return (v === null || v === undefined) ? null : v;
+    }
+  }
+
+  function legendGradientCSS(stops, ramp) {
     const min = stops[0], max = stops[stops.length - 1], span = max - min;
-    const parts = stops.map((s, i) => `${RAMP[i]} ${((s - min) / span * 100).toFixed(1)}%`);
+    const parts = stops.map((s, i) => `${ramp[i]} ${((s - min) / span * 100).toFixed(1)}%`);
     return `linear-gradient(90deg, ${parts.join(", ")})`;
   }
 
   // ---------------------------------------------------------------
   // State + property helpers
   // ---------------------------------------------------------------
-  const state = { geo: "fsa", age: "overall", year: "2020" };
+  const state = { geo: "fsa", age: "overall", year: "2020", metric: "attached", lang: "en" };
 
-  function propKey() {
-    return state.year === "change"
-      ? `${state.age}_change_pct_attached`
-      : `${state.age}_y${state.year}_pct_attached`;
+  // Declared early (before applyTexts()/applyStyle() are first invoked below) so that
+  // buildSearchList() and displayEdName() can safely reference them even before the
+  // attachment data has finished loading.
+  let fsaData = null, edData = null;
+  let edNameFrByEn = {};
+
+  function displayEdName(enName) {
+    if (state.lang === "fr") return edNameFrByEn[enName] || enName;
+    return enName;
   }
 
-  const AGE_LABEL = { overall: "all ages", children: "children & youth (0–17)", adults: "adults (18+)" };
-
   function updateLegend() {
-    const key = propKey();
+    const t = T[state.lang];
     const isChange = state.year === "change";
-    const stops = isChange ? CHANGE_STOPS : LEVEL_STOPS;
-    document.getElementById("legend-title").textContent = isChange
-      ? `Change in % attached, 2020 → 2022 (${AGE_LABEL[state.age]})`
-      : `% attached to a primary care provider, ${state.year} (${AGE_LABEL[state.age]})`;
-    document.getElementById("legend-bar").style.background = legendGradientCSS(stops);
+    const invert = state.metric === "unattached";
+    const stops = isChange ? CHANGE_STOPS : (invert ? UNATTACHED_LEVEL_STOPS : LEVEL_STOPS);
+    const ramp = invert ? [...RAMP].reverse() : RAMP;
+    const ageLabel = t.ageLabel[state.age];
+
+    const titleText = isChange
+      ? (invert ? t.legendTitleChangeUnattached(ageLabel) : t.legendTitleChangeAttached(ageLabel))
+      : (invert ? t.legendTitleLevelUnattached(state.year, ageLabel) : t.legendTitleLevelAttached(state.year, ageLabel));
+    document.getElementById("legend-title").textContent = titleText;
+    document.getElementById("legend-bar").style.background = legendGradientCSS(stops, ramp);
+
     const ticksEl = document.getElementById("legend-ticks");
     ticksEl.innerHTML = "";
-    [stops[0], stops[Math.floor(stops.length/2)], stops[stops.length-1]].forEach(v => {
+    [stops[0], stops[Math.floor(stops.length / 2)], stops[stops.length - 1]].forEach(v => {
       const span = document.createElement("span");
       span.textContent = (isChange && v > 0 ? "+" : "") + v + (isChange ? " pts" : "%");
       ticksEl.appendChild(span);
     });
+
     document.getElementById("legend-caption").textContent = isChange
-      ? "Blue-green = attachment improved · red = attachment declined."
-      : "Red = lower attachment · green = higher attachment.";
-    return key;
+      ? (invert ? t.legendCaptionChangeUnattached : t.legendCaptionChangeAttached)
+      : (invert ? t.legendCaptionLevelUnattached : t.legendCaptionLevelAttached);
   }
 
   function applyStyle() {
-    const key = updateLegend();
+    updateLegend();
+    const colorExpr = getColorExpr();
     ["fsa", "ed"].forEach(g => {
       if (!map.getLayer(`${g}-fill`)) return;
-      map.setPaintProperty(`${g}-fill`, "fill-color", interpExpr(key, state.year === "change" ? CHANGE_STOPS : LEVEL_STOPS));
+      map.setPaintProperty(`${g}-fill`, "fill-color", colorExpr);
       map.setLayoutProperty(`${g}-fill`, "visibility", g === state.geo ? "visible" : "none");
       map.setLayoutProperty(`${g}-outline`, "visibility", g === state.geo ? "visible" : "none");
       map.setLayoutProperty(`${g}-hover-outline`, "visibility", g === state.geo ? "visible" : "none");
     });
     buildSearchList();
+  }
+
+  function applyTexts() {
+    const t = T[state.lang];
+    document.documentElement.lang = state.lang;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const key = el.getAttribute("data-i18n");
+      if (t[key] !== undefined) el.textContent = t[key];
+    });
+    document.getElementById("search").placeholder = t.searchPlaceholder;
+    const panel = document.getElementById("panel");
+    const collapsed = panel.classList.contains("collapsed");
+    document.getElementById("collapse-btn").title = collapsed ? t.expandTitle : t.collapseTitle;
+    applyStyle();
   }
 
   // ---------------------------------------------------------------
@@ -304,6 +491,7 @@
       if (after) after();
     });
   }
+  wireSeg("ctrl-metric", "metric");
   wireSeg("ctrl-geo", "geo");
   wireSeg("ctrl-age", "age");
   wireSeg("ctrl-year", "year");
@@ -311,13 +499,16 @@
   document.getElementById("collapse-btn").addEventListener("click", () => {
     const panel = document.getElementById("panel");
     panel.classList.toggle("collapsed");
-    document.getElementById("collapse-btn").textContent = panel.classList.contains("collapsed") ? "+" : "–";
+    const collapsed = panel.classList.contains("collapsed");
+    document.getElementById("collapse-btn").textContent = collapsed ? "+" : "–";
+    document.getElementById("collapse-btn").title = T[state.lang][collapsed ? "expandTitle" : "collapseTitle"];
   });
+
+  applyTexts();
 
   // ---------------------------------------------------------------
   // Data loading + layers
   // ---------------------------------------------------------------
-  let fsaData = null, edData = null;
 
   function fmtPct(v) { return v === null || v === undefined ? "—" : v.toFixed(1) + "%"; }
   function fmtN(v) { return v === null || v === undefined ? "—" : Math.round(v).toLocaleString(); }
@@ -328,35 +519,42 @@
   }
 
   function popupHTML(props, geo) {
-    const title = geo === "fsa" ? props.fsa : props.name;
+    const t = T[state.lang];
+    const invert = state.metric === "unattached";
+    const enRidingName = geo === "fsa" ? props.electoral_district : props.name;
+    const displayRidingName = displayEdName(enRidingName);
+    const title = geo === "fsa" ? props.fsa : displayRidingName;
     const sub = geo === "fsa"
-      ? `Riding: ${props.electoral_district || "—"}`
-      : `Estimated from ${props.overall_y2022_fsa_with_data ?? "—"} of ${props.overall_y2022_fsa_count ?? "—"} FSAs with reportable data`;
+      ? `${t.popRidingPrefix}${displayRidingName || "—"}`
+      : t.popEstimatedFrom(props.overall_y2022_fsa_with_data ?? "—", props.overall_y2022_fsa_count ?? "—");
 
+    const suffix = invert ? "pct_unattached" : "pct_attached";
     const rows = [
-      ["All ages", "overall"],
-      ["Children & youth (0–17)", "children"],
-      ["Adults (18+)", "adults"]
+      [t.popRowAll, "overall"],
+      [t.popRowChildren, "children"],
+      [t.popRowAdults, "adults"]
     ].map(([label, ds]) => {
-      const p20 = props[`${ds}_y2020_pct_attached`];
-      const p22 = props[`${ds}_y2022_pct_attached`];
-      return `<tr><td>${label}</td><td>${fmtPct(p20)}</td><td>${fmtPct(p22)}</td><td>${fmtChange(p20, p22)}</td></tr>`;
+      const v20 = props[`${ds}_y2020_${suffix}`];
+      const v22 = props[`${ds}_y2022_${suffix}`];
+      return `<tr><td>${label}</td><td>${fmtPct(v20)}</td><td>${fmtPct(v22)}</td><td>${fmtChange(v20, v22)}</td></tr>`;
     }).join("");
 
     const n2022 = props.overall_y2022_n_total;
     const smallSampleFlag = (n2022 !== null && n2022 !== undefined && n2022 < 500)
-      ? `<div class="pop-flag">⚠ Small underlying population (${fmtN(n2022)} people in 2022)</div>` : "";
+      ? `<div class="pop-flag">${t.popSmallSample(fmtN(n2022))}</div>` : "";
 
     const noData = !props.has_data
-      ? `<div class="pop-note">No attachment data reported for this area.</div>`
+      ? `<div class="pop-note">${t.popNoData}</div>`
       : "";
+
+    const metricHeader = invert ? t.metricUnattached : t.metricAttached;
 
     return `
       <div class="pop-title">${title}</div>
       <div class="pop-sub">${sub}</div>
       ${props.has_data ? `
       <table class="pop-table">
-        <thead><tr><th>Attached</th><th>2020</th><th>2022</th><th>Change</th></tr></thead>
+        <thead><tr><th>${metricHeader}</th><th>2020</th><th>2022</th><th>${t.popColChange}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>` : ""}
       ${smallSampleFlag}${noData}
@@ -395,11 +593,11 @@
       map.setFeatureState({ source: id, id: hoveredId }, { hover: true });
 
       const props = e.features[0].properties;
-      const key = propKey();
-      const val = props[key];
-      const label = id === "fsa" ? props.fsa : props.name;
-      const valTxt = (val === null || val === undefined) ? "no data" :
-        (state.year === "change" ? fmtChange(0, val).replace("+0.0 pts","0.0 pts") : val.toFixed(1) + "%");
+      const val = getCurrentValue(props);
+      const label = id === "fsa" ? props.fsa : displayEdName(props.name);
+      const valTxt = (val === null)
+        ? T[state.lang].tooltipNoData
+        : (state.year === "change" ? (val > 0 ? "+" : "") + val.toFixed(1) + " pts" : val.toFixed(1) + "%");
       tooltip.style.display = "block";
       tooltip.style.left = e.point.x + "px";
       tooltip.style.top = e.point.y + "px";
@@ -429,7 +627,9 @@
     if (!src) return;
     src.features.forEach(f => {
       const opt = document.createElement("option");
-      opt.value = state.geo === "fsa" ? `${f.properties.fsa} — ${f.properties.electoral_district}` : f.properties.name;
+      opt.value = state.geo === "fsa"
+        ? `${f.properties.fsa} — ${displayEdName(f.properties.electoral_district)}`
+        : displayEdName(f.properties.name);
       list.appendChild(opt);
     });
   }
@@ -451,7 +651,9 @@
     const src = state.geo === "fsa" ? fsaData : edData;
     if (!src) return;
     const match = src.features.find(f => {
-      const label = state.geo === "fsa" ? `${f.properties.fsa} — ${f.properties.electoral_district}` : f.properties.name;
+      const label = state.geo === "fsa"
+        ? `${f.properties.fsa} — ${displayEdName(f.properties.electoral_district)}`
+        : displayEdName(f.properties.name);
       return label.toLowerCase() === q.toLowerCase() ||
              (state.geo === "fsa" && f.properties.fsa.toLowerCase() === q.toLowerCase());
     });
@@ -472,6 +674,9 @@
     fetch("data/ed_attachment.geojson").then(r => r.json())
   ]).then(([fsa, ed]) => {
     fsaData = fsa; edData = ed;
+    ed.features.forEach(f => {
+      edNameFrByEn[f.properties.name] = f.properties.electoral_district_fr;
+    });
     const ready = () => {
       addGeoLayer("fsa", fsaData);
       addGeoLayer("ed", edData);

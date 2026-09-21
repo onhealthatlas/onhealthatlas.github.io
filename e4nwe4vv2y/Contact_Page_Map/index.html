@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Location Map</title>
+
+<!-- MapLibre GL JS -->
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+<!-- PMTiles protocol support (required by the map style's vector source) -->
+<script src="https://cdn.jsdelivr.net/npm/pmtiles@3.2.0/dist/pmtiles.js"></script>
+
+<style>
+  :root {
+    --accent: #7a1f2e;       /* maroon accent, matches the office branding */
+    --accent-dark: #5e1723;
+    --text-dark: #1f1f1f;
+    --text-muted: #5a5a5a;
+    --card-bg: #ffffff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* Outer wrapper - this is the element you embed in the page.
+     Change the height below to control how tall the map appears. */
+  #office-map-embed {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    min-height: 320px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+
+  #map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Info card, styled after the previous Google Maps embed's InfoWindow */
+  .map-info-card {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 5;
+    width: 280px;
+    max-width: calc(100% - 24px);
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    padding: 14px 14px 12px 14px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .map-info-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .map-info-card__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a0dab;
+    line-height: 1.35;
+  }
+
+  .map-info-card__actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .map-info-card__icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f1f3f4;
+    color: var(--text-dark);
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+
+  .map-info-card__icon-btn:hover {
+    background: #e4e6e7;
+  }
+
+  .map-info-card__icon-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .map-info-card__icon-btn--directions {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .map-info-card__icon-btn--directions:hover {
+    background: var(--accent-dark);
+  }
+
+  .map-info-card__address {
+    margin: 8px 0 0 0;
+    color: var(--text-muted);
+  }
+
+  /* Marker pin */
+  .office-marker {
+    width: 27px;
+    height: 41px;
+    background: none;
+    cursor: pointer;
+  }
+
+  .maplibregl-ctrl-attrib {
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div id="office-map-embed">
+  <div id="map"></div>
+
+  <div class="map-info-card">
+    <div class="map-info-card__header">
+      <p class="map-info-card__title">Dr. Adil Shamji, MPP – Don Valley East Constituency Office</p>
+      <div class="map-info-card__actions">
+        <a class="map-info-card__icon-btn" href="https://www.mapquest.com/ca/ontario/toronto/m3a-1c1/1200-lawrence-ave-e-43.74162,-79.31997" target="_blank" rel="noopener" title="Open map" aria-label="Open map">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 3h7v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a class="map-info-card__icon-btn map-info-card__icon-btn--directions" href="https://www.mapquest.com/directions/to/ca/ontario/toronto/m3a-1c1/1200-lawrence-ave-e" target="_blank" rel="noopener" title="Get directions" aria-label="Get directions">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3l8 8-8 8-1.4-1.4L16.2 12H4v-2h12.2l-5.6-5.6L12 3z" fill="currentColor"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+    <p class="map-info-card__address">1200 Lawrence Ave. E, Suite L02, Toronto, ON M3A 1C1, Canada</p>
+  </div>
+</div>
+
+<script>
+  // Office location
+  const OFFICE_LNG = -79.31997554391106;
+  const OFFICE_LAT = 43.74161793666716;
+
+  // Register the pmtiles:// protocol used by the map style's vector source
+  const protocol = new pmtiles.Protocol();
+  maplibregl.addProtocol("pmtiles", protocol.tile);
+
+  const map = new maplibregl.Map({
+    container: "map",
+    style: "style.json",
+    center: [OFFICE_LNG, OFFICE_LAT],
+    zoom: 15.5,
+    attributionControl: true
+  });
+
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+  // Marker pin (SVG, matches the maroon accent color)
+  const markerEl = document.createElement("div");
+  markerEl.className = "office-marker";
+  markerEl.innerHTML = `
+    <svg viewBox="0 0 27 41" xmlns="http://www.w3.org/2000/svg">
+      <path d="M13.5 0C6.04 0 0 6.04 0 13.5c0 10.13 13.5 27.5 13.5 27.5S27 23.63 27 13.5C27 6.04 20.96 0 13.5 0z" fill="#7a1f2e"/>
+      <circle cx="13.5" cy="13.5" r="5.5" fill="#ffffff"/>
+    </svg>
+  `;
+
+  new maplibregl.Marker({ element: markerEl, anchor: "bottom" })
+    .setLngLat([OFFICE_LNG, OFFICE_LAT])
+    .addTo(map);
+</script>
+
+</body>
+</html>

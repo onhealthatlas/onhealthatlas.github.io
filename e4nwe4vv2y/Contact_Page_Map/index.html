@@ -33,7 +33,7 @@
       top: 12px;
       left: 12px;
       z-index: 5;
-      width: 280px;
+      width: 320px;
       max-width: calc(100% - 24px);
       background: #ffffff;
       border-radius: 8px;
@@ -133,7 +133,7 @@
         </a>
       </div>
     </div>
-    <p class="map-info-card__address">1200 Lawrence Ave. E, Suite L02, Toronto, ON M3A 1C1, Canada</p>
+    <p class="map-info-card__address">1200 Lawrence Ave. E, Suite L02<br>Toronto, ON M3A 1C1, Canada</p>
   </div>
 
   <script>
@@ -156,19 +156,13 @@
       attributionControl: { compact: true }
     });
 
-    // Belt-and-suspenders: force globe projection even if style.json's
-    // top-level "projection" is ever overwritten by a future edit.
+    // Force flat (mercator) projection, even if style.json's top-level
+    // "projection" is ever changed to globe in a future edit.
     map.on("style.load", () => {
-      map.setProjection({ type: "globe" });
+      map.setProjection({ type: "mercator" });
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
-
-    // Adds a small button to toggle between the 3D globe and a flat mercator map.
-    if (typeof maplibregl.GlobeControl === "function") {
-      map.addControl(new maplibregl.GlobeControl(), "top-right");
-    }
 
     // Marker pin (SVG, matches the maroon accent color used in the info card)
     const markerEl = document.createElement("div");

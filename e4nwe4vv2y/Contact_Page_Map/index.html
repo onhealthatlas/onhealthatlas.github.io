@@ -1,145 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Office Location Map</title>
+  <meta charset="utf-8" />
+  <title>Dr. Adil Shamji, MPP — Office Location</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-<!-- MapLibre GL JS -->
-<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <!-- MapLibre GL JS (pinned version for stability) -->
+  <link href="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.js"></script>
 
-<!-- PMTiles protocol support (required by the map style's vector source) -->
-<script src="https://cdn.jsdelivr.net/npm/pmtiles@3.2.0/dist/pmtiles.js"></script>
+  <!-- PMTiles protocol handler, so MapLibre can read pmtiles:// vector sources directly -->
+  <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
 
-<style>
-  :root {
-    --accent: #7a1f2e;       /* maroon accent, matches the office branding */
-    --accent-dark: #5e1723;
-    --text-dark: #1f1f1f;
-    --text-muted: #5a5a5a;
-    --card-bg: #ffffff;
-  }
+  <style>
+    html, body, #map {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: #0b1026; /* matches the style's space color so there's no flash before load */
+    }
 
-  * { box-sizing: border-box; }
+    * { box-sizing: border-box; }
 
-  html, body {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  }
+    .maplibregl-ctrl-attrib {
+      font-size: 11px;
+    }
 
-  /* Outer wrapper - this is the element you embed in the page.
-     Change the height below to control how tall the map appears. */
-  #office-map-embed {
-    position: relative;
-    width: 100%;
-    height: 500px;
-    min-height: 320px;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  }
+    /* Info card, styled after the previous Google Maps embed's InfoWindow */
+    .map-info-card {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 5;
+      width: 280px;
+      max-width: calc(100% - 24px);
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      padding: 14px 14px 12px 14px;
+      font-size: 13px;
+      line-height: 1.4;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
 
-  #map {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-  }
+    .map-info-card__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
 
-  /* Info card, styled after the previous Google Maps embed's InfoWindow */
-  .map-info-card {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    z-index: 5;
-    width: 280px;
-    max-width: calc(100% - 24px);
-    background: var(--card-bg);
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-    padding: 14px 14px 12px 14px;
-    font-size: 13px;
-    line-height: 1.4;
-  }
+    .map-info-card__title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a0dab;
+      line-height: 1.35;
+    }
 
-  .map-info-card__header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-  }
+    .map-info-card__actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
 
-  .map-info-card__title {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: #1a0dab;
-    line-height: 1.35;
-  }
+    .map-info-card__icon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f1f3f4;
+      color: #1f1f1f;
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+    }
 
-  .map-info-card__actions {
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
+    .map-info-card__icon-btn:hover {
+      background: #e4e6e7;
+    }
 
-  .map-info-card__icon-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #f1f3f4;
-    color: var(--text-dark);
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: background 0.15s ease;
-  }
+    .map-info-card__icon-btn svg {
+      width: 15px;
+      height: 15px;
+    }
 
-  .map-info-card__icon-btn:hover {
-    background: #e4e6e7;
-  }
+    .map-info-card__icon-btn--directions {
+      background: #7a1f2e;
+      color: #fff;
+    }
 
-  .map-info-card__icon-btn svg {
-    width: 15px;
-    height: 15px;
-  }
+    .map-info-card__icon-btn--directions:hover {
+      background: #5e1723;
+    }
 
-  .map-info-card__icon-btn--directions {
-    background: var(--accent);
-    color: #fff;
-  }
+    .map-info-card__address {
+      margin: 8px 0 0 0;
+      color: #5a5a5a;
+    }
 
-  .map-info-card__icon-btn--directions:hover {
-    background: var(--accent-dark);
-  }
-
-  .map-info-card__address {
-    margin: 8px 0 0 0;
-    color: var(--text-muted);
-  }
-
-  /* Marker pin */
-  .office-marker {
-    width: 27px;
-    height: 41px;
-    background: none;
-    cursor: pointer;
-  }
-
-  .maplibregl-ctrl-attrib {
-    font-size: 10px;
-  }
-</style>
+    /* Marker pin */
+    .office-marker {
+      width: 27px;
+      height: 41px;
+      background: none;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-
-<div id="office-map-embed">
   <div id="map"></div>
 
   <div class="map-info-card">
@@ -162,41 +135,58 @@
     </div>
     <p class="map-info-card__address">1200 Lawrence Ave. E, Suite L02, Toronto, ON M3A 1C1, Canada</p>
   </div>
-</div>
 
-<script>
-  // Office location
-  const OFFICE_LNG = -79.31997554391106;
-  const OFFICE_LAT = 43.74161793666716;
+  <script>
+    // Office location
+    const OFFICE_LNG = -79.31997554391106;
+    const OFFICE_LAT = 43.74161793666716;
 
-  // Register the pmtiles:// protocol used by the map style's vector source
-  const protocol = new pmtiles.Protocol();
-  maplibregl.addProtocol("pmtiles", protocol.tile);
+    // Register the pmtiles:// protocol so MapLibre can fetch tiles directly
+    // out of the single .pmtiles archive via HTTP range requests.
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
 
-  const map = new maplibregl.Map({
-    container: "map",
-    style: "style.json",
-    center: [OFFICE_LNG, OFFICE_LAT],
-    zoom: 15.5,
-    attributionControl: true
-  });
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "style.json",   // relative path — served alongside this file on GitHub Pages
+      center: [OFFICE_LNG, OFFICE_LAT],
+      zoom: 15.5,
+      pitch: 0,
+      bearing: 0,
+      attributionControl: { compact: true }
+    });
 
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    // Belt-and-suspenders: force globe projection even if style.json's
+    // top-level "projection" is ever overwritten by a future edit.
+    map.on("style.load", () => {
+      map.setProjection({ type: "globe" });
+    });
 
-  // Marker pin (SVG, matches the maroon accent color)
-  const markerEl = document.createElement("div");
-  markerEl.className = "office-marker";
-  markerEl.innerHTML = `
-    <svg viewBox="0 0 27 41" xmlns="http://www.w3.org/2000/svg">
-      <path d="M13.5 0C6.04 0 0 6.04 0 13.5c0 10.13 13.5 27.5 13.5 27.5S27 23.63 27 13.5C27 6.04 20.96 0 13.5 0z" fill="#7a1f2e"/>
-      <circle cx="13.5" cy="13.5" r="5.5" fill="#ffffff"/>
-    </svg>
-  `;
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
 
-  new maplibregl.Marker({ element: markerEl, anchor: "bottom" })
-    .setLngLat([OFFICE_LNG, OFFICE_LAT])
-    .addTo(map);
-</script>
+    // Adds a small button to toggle between the 3D globe and a flat mercator map.
+    if (typeof maplibregl.GlobeControl === "function") {
+      map.addControl(new maplibregl.GlobeControl(), "top-right");
+    }
 
+    // Marker pin (SVG, matches the maroon accent color used in the info card)
+    const markerEl = document.createElement("div");
+    markerEl.className = "office-marker";
+    markerEl.innerHTML = `
+      <svg viewBox="0 0 27 41" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13.5 0C6.04 0 0 6.04 0 13.5c0 10.13 13.5 27.5 13.5 27.5S27 23.63 27 13.5C27 6.04 20.96 0 13.5 0z" fill="#7a1f2e"/>
+        <circle cx="13.5" cy="13.5" r="5.5" fill="#ffffff"/>
+      </svg>
+    `;
+
+    new maplibregl.Marker({ element: markerEl, anchor: "bottom" })
+      .setLngLat([OFFICE_LNG, OFFICE_LAT])
+      .addTo(map);
+
+    map.on("error", (e) => {
+      console.error("Map error:", e && e.error ? e.error : e);
+    });
+  </script>
 </body>
 </html>

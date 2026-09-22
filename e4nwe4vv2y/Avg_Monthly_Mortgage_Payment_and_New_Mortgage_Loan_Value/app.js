@@ -140,14 +140,11 @@
       }
     }, beforeId);
 
-    // Reserve room for the left control panel and, on wide-enough screens,
-    // the right-hand detail panel too, so a selected CMA near the east
-    // edge of Ontario (e.g. Ottawa) doesn't end up rendered underneath it.
-    const isNarrowViewport = window.innerWidth <= 560;
-    const fitPadding = isNarrowViewport
-      ? { top: 90, bottom: 460, left: 20, right: 20 }
-      : { top: 40, bottom: 40, left: 360, right: 330 };
-    map.fitBounds(ONTARIO_BOUNDS, { padding: fitPadding, duration: 0 });
+    // Reserve room for the floating left control panel. The right-hand
+    // detail panel is a real layout sidebar (see #mapWrap/#detailPanel in
+    // the HTML), so it shrinks the map's own container when open rather
+    // than overlapping it — no extra padding needed for it here.
+    map.fitBounds(ONTARIO_BOUNDS, { padding: { top: 40, bottom: 40, left: 360, right: 40 }, duration: 0 });
 
     document.getElementById("panelTitle").textContent = currentMetric().label;
     initControls();
@@ -308,22 +305,18 @@
     });
 
     map.on("click", (e) => {
-      // Avoid popping up underneath the fixed right-hand detail panel:
-      // force the popup to open to the left of the click whenever a
-      // default-centered popup could reach into the panel's column.
-      const containerWidth = map.getContainer().clientWidth;
-      const panelZoneStart = containerWidth - 300 /* panel width */ - 14 /* gap */ - 280 /* popup footprint */;
-      const anchor = e.point.x > panelZoneStart ? "right" : undefined;
-
+      // The detail panel is a real layout sidebar outside the map
+      // container (see #mapWrap), so the container's own width already
+      // excludes it — no popup-position hack needed here.
       const cmaHits = map.queryRenderedFeatures(e.point, { layers: ["cma-fill"] });
       if (cmaHits.length) {
         const id = String(cmaHits[0].properties.CMAUID);
-        selectGeography("cma", id, e.lngLat, anchor);
+        selectGeography("cma", id, e.lngLat);
         return;
       }
       const provHits = map.queryRenderedFeatures(e.point, { layers: ["province-fill"] });
       if (provHits.length) {
-        selectGeography("province", "ON", e.lngLat, anchor);
+        selectGeography("province", "ON", e.lngLat);
         return;
       }
       closeSelection();
@@ -361,14 +354,12 @@
     hideDetailPanel();
   }
 
-  function selectGeography(kind, id, lngLat, anchor) {
+  function selectGeography(kind, id, lngLat) {
     destroyPopup();
     selected = { kind, id };
     activePopup = new maplibregl.Popup({
       className: "mm-popup",
       closeOnClick: false,
-      anchor: anchor,
-      offset: anchor === "right" ? { right: [-10, 0] } : undefined,
       maxWidth: kind === "cma" ? "260px" : "270px"
     })
       .setLngLat(lngLat)
@@ -425,9 +416,11 @@
   function showDetailPanel(kind, id) {
     document.getElementById("detailPanel").classList.add("visible");
     updateDetailPanelContent(kind, id);
+    requestAnimationFrame(() => map.resize());
   }
   function hideDetailPanel() {
     document.getElementById("detailPanel").classList.remove("visible");
+    requestAnimationFrame(() => map.resize());
   }
 
   function sparkline(values, opts) {
@@ -437,7 +430,7 @@
     const n = values.length;
     const finite = values.filter((v) => v != null);
     if (!finite.length || n < 2) {
-      return '<svg class="spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '"></svg>';
+      return '<svg class="spark" width="100%" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"></svg>';
     }
     const min = Math.min(...finite);
     const max = Math.max(...finite);
@@ -464,7 +457,7 @@
     }
 
     return (
-      '<svg class="spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<svg class="spark" width="100%" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
       '<path d="' + path.trim() + '" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
       marker +
       '</svg>'

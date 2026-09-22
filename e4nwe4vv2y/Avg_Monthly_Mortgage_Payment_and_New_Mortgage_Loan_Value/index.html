@@ -291,6 +291,103 @@
     margin: 2px 0 8px;
   }
 
+  /* ---------- Detail panel (right side) ---------- */
+  #detailPanel {
+    position: absolute;
+    top: 150px;
+    right: 14px;
+    width: 300px;
+    max-width: calc(100vw - 28px);
+    max-height: calc(100vh - 164px);
+    overflow-y: auto;
+    background: var(--surface-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px 16px;
+    z-index: 5;
+    display: none;
+  }
+  #detailPanel.visible { display: block; }
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .detail-header h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  #detailClose {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #detailClose:hover { background: var(--border); color: var(--text-primary); }
+  .detail-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 2px 0 4px;
+  }
+  .detail-note {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin: 2px 0 10px;
+  }
+  .metric-block {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .metric-block:first-of-type {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+  .metric-block-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: 4px;
+  }
+  .metric-current {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .mc-value {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--accent-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .mc-alt {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-block { margin-top: 6px; }
+  .chart-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+  svg.spark { display: block; }
+
   @media (max-width: 560px) {
     #panel {
       top: auto;
@@ -300,6 +397,14 @@
       width: auto;
       max-width: none;
       max-height: 58vh;
+    }
+    #detailPanel {
+      top: 10px;
+      left: 10px;
+      right: 54px;
+      width: auto;
+      max-width: none;
+      max-height: 34vh;
     }
   }
 </style>
@@ -346,13 +451,23 @@
       <div class="legend-title" id="legendTitle">Average value of new mortgage loans</div>
       <div id="legendGradient"></div>
       <div id="legendLabels"><span id="legendMin"></span><span id="legendMax"></span></div>
-      <div class="nodata"><span class="swatch"></span> Outside these 15 CMAs — province-wide data only</div>
+      <div class="nodata"><span class="swatch"></span> Outside these 15 CMAs – province-wide data only</div>
     </div>
 
     <div id="source-note">
       Source: Equifax Canada, via Canada Mortgage and Housing Corporation (data as of March 2026). Values are quarterly averages; seasonal effects are not removed.
       Inflation adjustment uses the Canada All-items Consumer Price Index (Bank of Canada / Statistics Canada Table 18-10-0004-01), rebased to a 2017 annual average of 100.
     </div>
+  </div>
+
+  <div id="detailPanel">
+    <div class="detail-header">
+      <h2 id="detailTitle">–</h2>
+      <button id="detailClose" title="Close" aria-label="Close">×</button>
+    </div>
+    <div class="detail-sub" id="detailSub"></div>
+    <div class="detail-note" id="detailNote"></div>
+    <div id="detailBody"></div>
   </div>
 
 <script src="app.js"></script>

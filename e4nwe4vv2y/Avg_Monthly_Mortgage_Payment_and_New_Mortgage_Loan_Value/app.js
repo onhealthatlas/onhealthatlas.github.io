@@ -79,9 +79,16 @@
     return state.real ? currentMetric().domain.real : currentMetric().domain.nominal;
   }
   function formatMetricValue(val) {
+    return formatValueForMetric(state.metric, val);
+  }
+  function formatValueForMetric(mkey, val) {
     if (val == null) return "No data";
     const txt = fmtCurrencyFull.format(val);
-    return state.metric === "monthlyPayment" ? txt + " /mo" : txt;
+    return mkey === "monthlyPayment" ? txt + " /mo" : txt;
+  }
+  function valueAt(metric, id, granularity, real, key) {
+    const fld = granularity === "quarter" ? (real ? "realQ" : "nominalQ") : (real ? "realY" : "nominalY");
+    return metric.geographies[id][fld][key];
   }
 
   // ---------------------------------------------------------------
@@ -133,7 +140,14 @@
       }
     }, beforeId);
 
-    map.fitBounds(ONTARIO_BOUNDS, { padding: { top: 40, bottom: 40, left: 360, right: 40 }, duration: 0 });
+    // Reserve room for the left control panel and, on wide-enough screens,
+    // the right-hand detail panel too, so a selected CMA near the east
+    // edge of Ontario (e.g. Ottawa) doesn't end up rendered underneath it.
+    const isNarrowViewport = window.innerWidth <= 560;
+    const fitPadding = isNarrowViewport
+      ? { top: 90, bottom: 460, left: 20, right: 20 }
+      : { top: 40, bottom: 40, left: 360, right: 330 };
+    map.fitBounds(ONTARIO_BOUNDS, { padding: fitPadding, duration: 0 });
 
     document.getElementById("panelTitle").textContent = currentMetric().label;
     initControls();
@@ -178,7 +192,7 @@
     }
 
     document.getElementById("periodLabel").textContent = periodLabel(key);
-    document.getElementById("periodSub").textContent = state.real ? "chained 2017$" : "nominal $";
+    document.getElementById("periodSub").textContent = state.real ? "chained 2017 dollars" : "nominal dollars";
 
     const slider = document.getElementById("periodSlider");
     const list = periodList();
@@ -186,6 +200,8 @@
     slider.value = String(state.periodIndex);
     document.getElementById("rangeStart").textContent = periodLabel(list[0]);
     document.getElementById("rangeEnd").textContent = periodLabel(list[list.length - 1]);
+
+    refreshSelection();
   }
 
   function updateLegend(domain, metric) {
@@ -292,51 +308,214 @@
     });
 
     map.on("click", (e) => {
-      const key = currentPeriodKey();
-      const field = fieldName();
-      const label = periodLabel(key);
-      const metric = currentMetric();
-      const dmTxt = state.real ? "inflation-adjusted, chained 2017 dollars" : "nominal (current-year) dollars";
-      const metricLower = metric.label.charAt(0).toLowerCase() + metric.label.slice(1);
+      // Avoid popping up underneath the fixed right-hand detail panel:
+      // force the popup to open to the left of the click whenever a
+      // default-centered popup could reach into the panel's column.
+      const containerWidth = map.getContainer().clientWidth;
+      const panelZoneStart = containerWidth - 300 /* panel width */ - 14 /* gap */ - 280 /* popup footprint */;
+      const anchor = e.point.x > panelZoneStart ? "right" : undefined;
 
       const cmaHits = map.queryRenderedFeatures(e.point, { layers: ["cma-fill"] });
       if (cmaHits.length) {
-        const f = cmaHits[0];
-        const id = String(f.properties.CMAUID);
-        const geo = metric.geographies[id];
-        const val = geo[field][key];
-        new maplibregl.Popup({ className: "mm-popup", maxWidth: "260px" })
-          .setLngLat(e.lngLat)
-          .setHTML(
-            '<h3>' + escapeHtml(geo.name) + '</h3>' +
-            '<div class="mm-period">' + escapeHtml(label) + '</div>' +
-            '<div class="mm-value">' + formatMetricValue(val) + '</div>' +
-            '<div class="mm-note">' + escapeHtml(metric.label) + ' (' + dmTxt + ')</div>'
-          )
-          .addTo(map);
+        const id = String(cmaHits[0].properties.CMAUID);
+        selectGeography("cma", id, e.lngLat, anchor);
         return;
       }
-
       const provHits = map.queryRenderedFeatures(e.point, { layers: ["province-fill"] });
       if (provHits.length) {
-        const val = metric.geographies.ON[field][key];
-        new maplibregl.Popup({ className: "mm-popup", maxWidth: "270px" })
-          .setLngLat(e.lngLat)
-          .setHTML(
-            '<h3>Ontario</h3>' +
-            '<p class="mm-warn">Only province-wide data is available for this area — it falls outside the 15 tracked metropolitan areas.</p>' +
-            '<div class="mm-period">' + escapeHtml(label) + '</div>' +
-            '<div class="mm-value">' + formatMetricValue(val) + '</div>' +
-            '<div class="mm-note">Ontario-wide ' + escapeHtml(metricLower) + ' (' + dmTxt + ')</div>'
-          )
-          .addTo(map);
+        selectGeography("province", "ON", e.lngLat, anchor);
+        return;
       }
+      closeSelection();
     });
+
+    document.getElementById("detailClose").addEventListener("click", closeSelection);
   }
 
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
+  }
+
+  // ---------------------------------------------------------------
+  // Selection (popup + right-hand detail panel), kept live across
+  // slider moves, play ticks, and toggle changes.
+  // ---------------------------------------------------------------
+  let selected = null; // { kind: 'cma' | 'province', id }
+  let activePopup = null;
+  let suppressPopupClose = false;
+
+  function destroyPopup() {
+    if (activePopup) {
+      suppressPopupClose = true;
+      activePopup.remove();
+      suppressPopupClose = false;
+      activePopup = null;
+    }
+  }
+
+  function closeSelection() {
+    destroyPopup();
+    selected = null;
+    hideDetailPanel();
+  }
+
+  function selectGeography(kind, id, lngLat, anchor) {
+    destroyPopup();
+    selected = { kind, id };
+    activePopup = new maplibregl.Popup({
+      className: "mm-popup",
+      closeOnClick: false,
+      anchor: anchor,
+      offset: anchor === "right" ? { right: [-10, 0] } : undefined,
+      maxWidth: kind === "cma" ? "260px" : "270px"
+    })
+      .setLngLat(lngLat)
+      .setHTML(popupHTML(kind, id))
+      .addTo(map);
+    activePopup.on("close", () => {
+      if (suppressPopupClose) return;
+      selected = null;
+      activePopup = null;
+      hideDetailPanel();
+    });
+    showDetailPanel(kind, id);
+  }
+
+  function refreshSelection() {
+    if (!selected || !DATA) return;
+    if (activePopup) activePopup.setHTML(popupHTML(selected.kind, selected.id));
+    updateDetailPanelContent(selected.kind, selected.id);
+  }
+
+  function popupHTML(kind, id) {
+    const key = currentPeriodKey();
+    const field = fieldName();
+    const label = periodLabel(key);
+    const metric = currentMetric();
+    const dmTxt = state.real ? "inflation-adjusted, chained 2017 dollars" : "nominal (current-year) dollars";
+
+    if (kind === "cma") {
+      const geo = metric.geographies[id];
+      const val = geo[field][key];
+      return (
+        '<h3>' + escapeHtml(geo.name) + '</h3>' +
+        '<div class="mm-period">' + escapeHtml(label) + '</div>' +
+        '<div class="mm-value">' + formatMetricValue(val) + '</div>' +
+        '<div class="mm-note">' + escapeHtml(metric.label) + ' (' + dmTxt + ')</div>'
+      );
+    }
+
+    const val = metric.geographies.ON[field][key];
+    const metricLower = metric.label.charAt(0).toLowerCase() + metric.label.slice(1);
+    return (
+      '<h3>Ontario</h3>' +
+      '<p class="mm-warn">Only province-wide data is available for this area – it falls outside the 15 tracked metropolitan areas.</p>' +
+      '<div class="mm-period">' + escapeHtml(label) + '</div>' +
+      '<div class="mm-value">' + formatMetricValue(val) + '</div>' +
+      '<div class="mm-note">Ontario-wide ' + escapeHtml(metricLower) + ' (' + dmTxt + ')</div>'
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // Right-hand detail panel: all data (both metrics, both
+  // granularities) for the selected geography.
+  // ---------------------------------------------------------------
+  function showDetailPanel(kind, id) {
+    document.getElementById("detailPanel").classList.add("visible");
+    updateDetailPanelContent(kind, id);
+  }
+  function hideDetailPanel() {
+    document.getElementById("detailPanel").classList.remove("visible");
+  }
+
+  function sparkline(values, opts) {
+    const w = opts.width || 288;
+    const h = opts.height || 46;
+    const pad = 4;
+    const n = values.length;
+    const finite = values.filter((v) => v != null);
+    if (!finite.length || n < 2) {
+      return '<svg class="spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '"></svg>';
+    }
+    const min = Math.min(...finite);
+    const max = Math.max(...finite);
+    const span = max - min || 1;
+    const stepX = (w - pad * 2) / (n - 1);
+
+    let path = "";
+    let drawing = false;
+    for (let i = 0; i < n; i++) {
+      const v = values[i];
+      if (v == null) { drawing = false; continue; }
+      const x = pad + i * stepX;
+      const y = pad + (1 - (v - min) / span) * (h - pad * 2);
+      path += (drawing ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1) + " ";
+      drawing = true;
+    }
+
+    let marker = "";
+    const hi = opts.highlightIndex;
+    if (hi != null && hi >= 0 && hi < n && values[hi] != null) {
+      const x = pad + hi * stepX;
+      const y = pad + (1 - (values[hi] - min) / span) * (h - pad * 2);
+      marker = '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3.5" fill="#0d366b" stroke="#fff" stroke-width="1.5"/>';
+    }
+
+    return (
+      '<svg class="spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<path d="' + path.trim() + '" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      marker +
+      '</svg>'
+    );
+  }
+
+  function updateDetailPanelContent(kind, id) {
+    if (!DATA) return;
+    const key = currentPeriodKey();
+    const label = periodLabel(key);
+    const yearOfKey = key.slice(0, 4);
+    const name = kind === "province" ? "Ontario" : DATA.metrics.loanValue.geographies[id].name;
+
+    document.getElementById("detailTitle").textContent = name;
+    document.getElementById("detailSub").textContent = label + " · " + (state.real ? "chained 2017 dollars" : "nominal dollars");
+    document.getElementById("detailNote").textContent = kind === "province"
+      ? "Province-wide average – outside the 15 tracked metropolitan areas."
+      : "";
+
+    const quarterHighlightIndex = state.granularity === "quarter" ? DATA.quarters.indexOf(key) : null;
+    const yearHighlightIndex = DATA.years.indexOf(yearOfKey);
+
+    let html = "";
+    ["loanValue", "monthlyPayment"].forEach((mkey) => {
+      const metric = DATA.metrics[mkey];
+      const geo = metric.geographies[id];
+      const curVal = valueAt(metric, id, state.granularity, state.real, key);
+      const altVal = valueAt(metric, id, state.granularity, !state.real, key);
+      const altLabel = state.real ? "nominal" : "chained 2017";
+
+      const qSeries = DATA.quarters.map((q) => geo[state.real ? "realQ" : "nominalQ"][q]);
+      const ySeries = DATA.years.map((y) => geo[state.real ? "realY" : "nominalY"][y]);
+
+      html +=
+        '<div class="metric-block">' +
+          '<div class="metric-block-title">' + escapeHtml(metric.label) + '</div>' +
+          '<div class="metric-current">' +
+            '<span class="mc-value">' + formatValueForMetric(mkey, curVal) + '</span>' +
+            (altVal == null ? "" : '<span class="mc-alt">(' + formatValueForMetric(mkey, altVal) + " " + altLabel + ')</span>') +
+          '</div>' +
+          '<div class="chart-block">' +
+            '<div class="chart-label">Quarterly, ' + DATA.quarters[0] + '–' + DATA.quarters[DATA.quarters.length - 1] + '</div>' +
+            sparkline(qSeries, { highlightIndex: quarterHighlightIndex }) +
+          '</div>' +
+          '<div class="chart-block">' +
+            '<div class="chart-label">Yearly, ' + DATA.years[0] + '–' + DATA.years[DATA.years.length - 1] + '</div>' +
+            sparkline(ySeries, { highlightIndex: yearHighlightIndex }) +
+          '</div>' +
+        '</div>';
+    });
+
+    document.getElementById("detailBody").innerHTML = html;
   }
 })();

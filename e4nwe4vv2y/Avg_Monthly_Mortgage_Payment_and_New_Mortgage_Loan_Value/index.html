@@ -423,7 +423,7 @@
 
   <div id="panel">
     <h1 id="panelTitle">Average Value of New Mortgage Loans</h1>
-    <p class="subtitle">Ontario &amp; 15 census metropolitan areas, 2012–2025</p>
+    <p class="subtitle" id="subtitleText">Ontario &amp; 15 census metropolitan areas, 2012–2025</p>
 
     <div class="seg" id="metricSeg">
       <button data-val="loanValue" class="active">Loan value</button>
@@ -447,8 +447,8 @@
 
     <div class="toggle-row">
       <div>
-        <div class="lbl">Inflation-adjusted</div>
-        <div class="hint">Show values in chained 2017 dollars</div>
+        <div class="lbl" id="inflationLabel">Inflation-adjusted</div>
+        <div class="hint" id="inflationHint">Show values in chained 2017 dollars</div>
       </div>
       <label class="switch">
         <input type="checkbox" id="realToggle" />
@@ -460,7 +460,7 @@
       <div class="legend-title" id="legendTitle">Average value of new mortgage loans</div>
       <div id="legendGradient"></div>
       <div id="legendLabels"><span id="legendMin"></span><span id="legendMax"></span></div>
-      <div class="nodata"><span class="swatch"></span> Outside these 15 CMAs – province-wide data only</div>
+      <div class="nodata"><span class="swatch"></span> <span id="nodataText">Outside these 15 CMAs – province-wide data only</span></div>
     </div>
 
     <div id="source-note">

@@ -17,6 +17,90 @@
   const STYLE_URL = window.MORTGAGE_MAP_STYLE_URL || "https://www.onhealthatlas.ca/e4nwe4vv2y/Globe_Light/style.json";
   const DATA_BASE = window.MORTGAGE_MAP_DATA_BASE || "data/";
 
+  // ---------------------------------------------------------------
+  // Language / translation
+  // ---------------------------------------------------------------
+  let currentLang = "en"; // 'en' | 'fr' — must be declared before controls are added
+
+  const STRINGS = {
+    en: {
+      pageTitle: "Ontario Mortgage Values Map",
+      subtitle: "Ontario & 15 census metropolitan areas, 2012–2025",
+      metricLoanValue: "Loan value",
+      metricMonthlyPayment: "Monthly payment",
+      granularityQuarterly: "Quarterly",
+      granularityYearly: "Yearly",
+      playTitle: "Play",
+      pauseTitle: "Pause",
+      sliderAriaLabel: "Time period",
+      inflationLabel: "Inflation-adjusted",
+      inflationHint: "Show values in chained 2017 dollars",
+      nodataText: "Outside these 15 CMAs – province-wide data only",
+      sourceNote: "Source: Equifax Canada, via Canada Mortgage and Housing Corporation (data as of March 2026). Values are quarterly averages; seasonal effects are not removed. Inflation adjustment uses the Canada All-items Consumer Price Index (Bank of Canada / Statistics Canada Table 18-10-0004-01), rebased to a 2017 annual average of 100.",
+      detailCloseTitle: "Close",
+      provinceHeading: "Ontario",
+      provinceWarning: "Only province-wide data is available for this area – it falls outside the 15 tracked metropolitan areas.",
+      provinceDetailNote: "Province-wide average – outside the 15 tracked metropolitan areas.",
+      noData: "No data",
+      perMonthSuffix: " /mo",
+      perMonthSuffixTight: "/mo",
+      nominalDollars: "nominal dollars",
+      realDollars: "chained 2017 dollars",
+      nominalParenthetical: "nominal (current-year) dollars",
+      realParenthetical: "inflation-adjusted, chained 2017 dollars",
+      altNominal: "nominal",
+      altReal: "chained 2017",
+      quarterlyChartLabel: "Quarterly",
+      yearlyChartLabel: "Yearly"
+    },
+    fr: {
+      pageTitle: "Carte des valeurs hypothécaires de l'Ontario",
+      subtitle: "Ontario et 15 régions métropolitaines de recensement, 2012–2025",
+      metricLoanValue: "Valeur du prêt",
+      metricMonthlyPayment: "Versement mensuel",
+      granularityQuarterly: "Trimestriel",
+      granularityYearly: "Annuel",
+      playTitle: "Lecture",
+      pauseTitle: "Pause",
+      sliderAriaLabel: "Période",
+      inflationLabel: "Corrigé de l'inflation",
+      inflationHint: "Afficher les valeurs en dollars enchaînés de 2017",
+      nodataText: "À l'extérieur de ces 15 RMR – données à l'échelle provinciale seulement",
+      sourceNote: "Source : Equifax Canada, par l'entremise de la Société canadienne d'hypothèques et de logement (données en date de mars 2026). Les valeurs sont des moyennes trimestrielles; les effets saisonniers ne sont pas éliminés. La correction de l'inflation utilise l'Indice des prix à la consommation, ensemble (Canada) (Banque du Canada / Statistique Canada, tableau 18-10-0004-01), rebasé de sorte que la moyenne annuelle de 2017 soit égale à 100.",
+      detailCloseTitle: "Fermer",
+      provinceHeading: "Ontario",
+      provinceWarning: "Seules les données à l'échelle provinciale sont disponibles pour ce secteur – il se situe à l'extérieur des 15 régions métropolitaines de recensement suivies.",
+      provinceDetailNote: "Moyenne à l'échelle provinciale – à l'extérieur des 15 régions métropolitaines de recensement suivies.",
+      noData: "Aucune donnée",
+      perMonthSuffix: " /mois",
+      perMonthSuffixTight: "/mois",
+      nominalDollars: "dollars nominaux",
+      realDollars: "dollars enchaînés de 2017",
+      nominalParenthetical: "dollars nominaux (année courante)",
+      realParenthetical: "corrigé de l'inflation, dollars enchaînés de 2017",
+      altNominal: "nominal",
+      altReal: "enchaîné 2017",
+      quarterlyChartLabel: "Trimestriel",
+      yearlyChartLabel: "Annuel"
+    }
+  };
+  function T(key) { return STRINGS[currentLang][key]; }
+
+  const METRIC_LABELS = {
+    loanValue: { en: "Average value of new mortgage loans", fr: "Valeur moyenne des nouveaux prêts hypothécaires" },
+    monthlyPayment: { en: "Average scheduled monthly payment", fr: "Versement mensuel prévu moyen" }
+  };
+  function metricLabel(mkey) { return METRIC_LABELS[mkey][currentLang]; }
+
+  const fmtCurrencyFull = {
+    en: new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }),
+    fr: new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 })
+  };
+  const fmtCurrencyCompact = {
+    en: new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", notation: "compact", maximumFractionDigits: 1 }),
+    fr: new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", notation: "compact", maximumFractionDigits: 1 })
+  };
+
   const map = new maplibregl.Map({
     container: "map",
     style: STYLE_URL,
@@ -28,8 +112,112 @@
     attributionControl: { compact: true }
   });
 
+  // ---- Native MapLibre control strings (zoom/compass/globe/popup close) ----
+  // MapLibre has no public "setLocale" API, so we read its private default
+  // dictionary once (English) and swap in a French one on toggle. Guarded
+  // so a future MapLibre upgrade that removes this private API just skips
+  // translating the native control tooltips rather than breaking anything.
+  const NATIVE_LOCALE_EN = Object.assign({}, map._locale || {});
+  const NATIVE_LOCALE_FR = {
+    "AttributionControl.ToggleAttribution": "Afficher/masquer l'attribution",
+    "AttributionControl.MapFeedback": "Commentaires sur la carte",
+    "GeolocateControl.FindMyLocation": "Me localiser",
+    "GeolocateControl.LocationNotAvailable": "Position non disponible",
+    "LogoControl.Title": "Logo MapLibre",
+    "Map.Title": "Carte",
+    "Marker.Title": "Repère de carte",
+    "NavigationControl.ResetBearing": "Réinitialiser l'orientation vers le nord",
+    "NavigationControl.ZoomIn": "Zoom avant",
+    "NavigationControl.ZoomOut": "Zoom arrière",
+    "Popup.Close": "Fermer",
+    "GlobeControl.Enable": "Activer le globe",
+    "GlobeControl.Disable": "Désactiver le globe",
+    "ScaleControl.Feet": "pi",
+    "ScaleControl.Meters": "m",
+    "ScaleControl.Kilometers": "km",
+    "ScaleControl.Miles": "mi",
+    "ScaleControl.NauticalMiles": "mn",
+    "TerrainControl.Enable": "Activer le relief",
+    "TerrainControl.Disable": "Désactiver le relief"
+  };
+
+  function applyMapControlLocale(lang) {
+    if (typeof map._getUIString !== "function") return;
+    map._locale = Object.assign({}, lang === "fr" ? NATIVE_LOCALE_FR : NATIVE_LOCALE_EN);
+
+    // GlobeControl and the popup close button re-read map._locale on their
+    // own (on the next projection toggle / popup update), so they pick up
+    // the new language automatically. NavigationControl sets its button
+    // titles once at creation time, so those need a manual refresh here.
+    const zoomInBtn = document.querySelector(".maplibregl-ctrl-zoom-in");
+    const zoomOutBtn = document.querySelector(".maplibregl-ctrl-zoom-out");
+    const compassBtn = document.querySelector(".maplibregl-ctrl-compass");
+    if (zoomInBtn) {
+      const txt = map._getUIString("NavigationControl.ZoomIn");
+      zoomInBtn.title = txt; zoomInBtn.setAttribute("aria-label", txt);
+    }
+    if (zoomOutBtn) {
+      const txt = map._getUIString("NavigationControl.ZoomOut");
+      zoomOutBtn.title = txt; zoomOutBtn.setAttribute("aria-label", txt);
+    }
+    if (compassBtn) {
+      const txt = map._getUIString("NavigationControl.ResetBearing");
+      compassBtn.title = txt; compassBtn.setAttribute("aria-label", txt);
+    }
+    const globeBtn = document.querySelector(".maplibregl-ctrl-globe, .maplibregl-ctrl-globe-enabled");
+    if (globeBtn) {
+      const key = globeBtn.classList.contains("maplibregl-ctrl-globe-enabled") ? "GlobeControl.Disable" : "GlobeControl.Enable";
+      globeBtn.title = map._getUIString(key);
+    }
+  }
+
+  // ---- EN/FR toggle button, stacked under the globe control ----
+  let langToggleButton = null;
+
+  function updateLangToggleButton() {
+    if (!langToggleButton) return;
+    const showsFrenchOption = currentLang === "en";
+    langToggleButton.textContent = showsFrenchOption ? "FR" : "EN";
+    const label = showsFrenchOption ? "Switch to French" : "Revenir à l'anglais";
+    langToggleButton.title = label;
+    langToggleButton.setAttribute("aria-label", label);
+  }
+
+  class LanguageToggleControl {
+    onAdd(mapInstance) {
+      this._map = mapInstance;
+      this._container = document.createElement("div");
+      this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+      this._button = document.createElement("button");
+      this._button.type = "button";
+      this._button.style.fontSize = "11px";
+      this._button.style.fontWeight = "700";
+      this._button.style.fontFamily = "inherit";
+      this._button.style.color = "#333";
+      this._button.style.lineHeight = "29px";
+      this._button.style.textAlign = "center";
+      this._button.addEventListener("click", () => {
+        applyLanguage(currentLang === "en" ? "fr" : "en");
+      });
+      this._container.appendChild(this._button);
+      langToggleButton = this._button;
+      updateLangToggleButton();
+      return this._container;
+    }
+    onRemove() {
+      if (this._container && this._container.parentNode) {
+        this._container.parentNode.removeChild(this._container);
+      }
+      if (langToggleButton === this._button) langToggleButton = null;
+      this._map = undefined;
+    }
+  }
+
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "top-right");
-  map.addControl(new maplibregl.FullscreenControl(), "top-right");
+  if (typeof maplibregl.GlobeControl === "function") {
+    map.addControl(new maplibregl.GlobeControl(), "top-right");
+  }
+  map.addControl(new LanguageToggleControl(), "top-right");
   map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
 
   map.on("error", (e) => {
@@ -53,9 +241,6 @@
   let lastColorKey = null; // tracks whether fill-color expression matches current metric+dollar mode
   let hoveredId = null;
 
-  const fmtCurrencyFull = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
-  const fmtCurrencyCompact = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", notation: "compact", maximumFractionDigits: 1 });
-
   function currentMetric() {
     return DATA.metrics[state.metric];
   }
@@ -73,7 +258,11 @@
   }
   function periodLabel(key) {
     if (state.granularity === "year") return key;
-    return key.slice(0, 4) + " " + key.slice(4); // '2019Q3' -> '2019 Q3'
+    const qPart = currentLang === "fr" ? key.slice(4).replace("Q", "T") : key.slice(4);
+    return key.slice(0, 4) + " " + qPart; // '2019Q3' -> '2019 Q3' ('2019 T3' in French)
+  }
+  function quarterKeyDisplay(key) {
+    return currentLang === "fr" ? key.replace("Q", "T") : key;
   }
   function currentDomain() {
     return state.real ? currentMetric().domain.real : currentMetric().domain.nominal;
@@ -82,9 +271,9 @@
     return formatValueForMetric(state.metric, val);
   }
   function formatValueForMetric(mkey, val) {
-    if (val == null) return "No data";
-    const txt = fmtCurrencyFull.format(val);
-    return mkey === "monthlyPayment" ? txt + " /mo" : txt;
+    if (val == null) return T("noData");
+    const txt = fmtCurrencyFull[currentLang].format(val);
+    return mkey === "monthlyPayment" ? txt + T("perMonthSuffix") : txt;
   }
   function valueAt(metric, id, granularity, real, key) {
     const fld = granularity === "quarter" ? (real ? "realQ" : "nominalQ") : (real ? "realY" : "nominalY");
@@ -146,10 +335,10 @@
     // than overlapping it — no extra padding needed for it here.
     map.fitBounds(ONTARIO_BOUNDS, { padding: { top: 40, bottom: 40, left: 360, right: 40 }, duration: 0 });
 
-    document.getElementById("panelTitle").textContent = currentMetric().label;
     initControls();
     render();
     initInteractions();
+    applyLanguage(currentLang); // sync all UI text now that the panel/data exist
   });
 
   // ---------------------------------------------------------------
@@ -185,11 +374,11 @@
     if (lastColorKey !== colorKey) {
       map.setPaintProperty("cma-fill", "fill-color", buildFillExpression(domain));
       lastColorKey = colorKey;
-      updateLegend(domain, metric);
+      updateLegend(domain);
     }
 
     document.getElementById("periodLabel").textContent = periodLabel(key);
-    document.getElementById("periodSub").textContent = state.real ? "chained 2017 dollars" : "nominal dollars";
+    document.getElementById("periodSub").textContent = state.real ? T("realDollars") : T("nominalDollars");
 
     const slider = document.getElementById("periodSlider");
     const list = periodList();
@@ -201,13 +390,72 @@
     refreshSelection();
   }
 
-  function updateLegend(domain, metric) {
+  function updateLegend(domain) {
     const grad = "linear-gradient(to right, " + RAMP.join(",") + ")";
     document.getElementById("legendGradient").style.background = grad;
-    const suffix = state.metric === "monthlyPayment" ? "/mo" : "";
-    document.getElementById("legendMin").textContent = fmtCurrencyCompact.format(domain[0]) + suffix;
-    document.getElementById("legendMax").textContent = fmtCurrencyCompact.format(domain[1]) + suffix;
-    document.getElementById("legendTitle").textContent = metric.label;
+    const suffix = state.metric === "monthlyPayment" ? T("perMonthSuffixTight") : "";
+    document.getElementById("legendMin").textContent = fmtCurrencyCompact[currentLang].format(domain[0]) + suffix;
+    document.getElementById("legendMax").textContent = fmtCurrencyCompact[currentLang].format(domain[1]) + suffix;
+    document.getElementById("legendTitle").textContent = metricLabel(state.metric);
+  }
+
+  // ---------------------------------------------------------------
+  // Language toggle: applies translated text across the whole page
+  // ---------------------------------------------------------------
+  function applyLanguage(lang) {
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    document.title = T("pageTitle");
+
+    const subtitleEl = document.getElementById("subtitleText");
+    if (subtitleEl) subtitleEl.textContent = T("subtitle");
+
+    const metricSeg = document.getElementById("metricSeg");
+    if (metricSeg) {
+      const loanBtn = metricSeg.querySelector('[data-val="loanValue"]');
+      const payBtn = metricSeg.querySelector('[data-val="monthlyPayment"]');
+      if (loanBtn) loanBtn.textContent = T("metricLoanValue");
+      if (payBtn) payBtn.textContent = T("metricMonthlyPayment");
+    }
+
+    const granSeg = document.getElementById("granularitySeg");
+    if (granSeg) {
+      const qBtn = granSeg.querySelector('[data-val="quarter"]');
+      const yBtn = granSeg.querySelector('[data-val="year"]');
+      if (qBtn) qBtn.textContent = T("granularityQuarterly");
+      if (yBtn) yBtn.textContent = T("granularityYearly");
+    }
+
+    const slider = document.getElementById("periodSlider");
+    if (slider) slider.setAttribute("aria-label", T("sliderAriaLabel"));
+
+    updatePlayButtonLabel();
+
+    const inflationLabelEl = document.getElementById("inflationLabel");
+    if (inflationLabelEl) inflationLabelEl.textContent = T("inflationLabel");
+    const inflationHintEl = document.getElementById("inflationHint");
+    if (inflationHintEl) inflationHintEl.textContent = T("inflationHint");
+
+    const nodataTextEl = document.getElementById("nodataText");
+    if (nodataTextEl) nodataTextEl.textContent = T("nodataText");
+
+    const sourceNoteEl = document.getElementById("source-note");
+    if (sourceNoteEl) sourceNoteEl.textContent = T("sourceNote");
+
+    const detailCloseEl = document.getElementById("detailClose");
+    if (detailCloseEl) {
+      detailCloseEl.title = T("detailCloseTitle");
+      detailCloseEl.setAttribute("aria-label", T("detailCloseTitle"));
+    }
+
+    if (DATA) {
+      document.getElementById("panelTitle").textContent = metricLabel(state.metric);
+      lastColorKey = null; // force the legend title/min/max to re-render in the new language
+      render(); // refreshes legend text, period label/units, and (via refreshSelection) any open popup/detail panel
+    }
+
+    updateLangToggleButton();
+    applyMapControlLocale(lang);
   }
 
   // ---------------------------------------------------------------
@@ -222,7 +470,7 @@
         state.metric = newMetric;
         lastColorKey = null; // force color + legend rescale
         metricSeg.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
-        document.getElementById("panelTitle").textContent = currentMetric().label;
+        document.getElementById("panelTitle").textContent = metricLabel(state.metric);
         render();
       });
     });
@@ -259,10 +507,19 @@
     document.getElementById("playBtn").addEventListener("click", togglePlay);
   }
 
+  function updatePlayButtonLabel() {
+    const btn = document.getElementById("playBtn");
+    if (!btn) return;
+    const label = state.playing ? T("pauseTitle") : T("playTitle");
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  }
+
   function togglePlay() {
     if (state.playing) { stopPlaying(); return; }
     state.playing = true;
     document.getElementById("playBtn").textContent = "❚❚";
+    updatePlayButtonLabel();
     state.playTimer = setInterval(() => {
       const list = periodList();
       state.periodIndex = (state.periodIndex + 1) % list.length;
@@ -274,6 +531,7 @@
     state.playTimer = null;
     state.playing = false;
     document.getElementById("playBtn").textContent = "▶";
+    updatePlayButtonLabel();
   }
 
   // ---------------------------------------------------------------
@@ -380,12 +638,22 @@
     updateDetailPanelContent(selected.kind, selected.id);
   }
 
+  function provinceNoteText(mkey) {
+    const label = metricLabel(mkey);
+    const paren = state.real ? T("realParenthetical") : T("nominalParenthetical");
+    if (currentLang === "fr") {
+      return label + " à l'échelle de l'Ontario (" + paren + ")";
+    }
+    const lower = label.charAt(0).toLowerCase() + label.slice(1);
+    return "Ontario-wide " + lower + " (" + paren + ")";
+  }
+
   function popupHTML(kind, id) {
     const key = currentPeriodKey();
     const field = fieldName();
     const label = periodLabel(key);
     const metric = currentMetric();
-    const dmTxt = state.real ? "inflation-adjusted, chained 2017 dollars" : "nominal (current-year) dollars";
+    const dmTxt = state.real ? T("realParenthetical") : T("nominalParenthetical");
 
     if (kind === "cma") {
       const geo = metric.geographies[id];
@@ -394,18 +662,17 @@
         '<h3>' + escapeHtml(geo.name) + '</h3>' +
         '<div class="mm-period">' + escapeHtml(label) + '</div>' +
         '<div class="mm-value">' + formatMetricValue(val) + '</div>' +
-        '<div class="mm-note">' + escapeHtml(metric.label) + ' (' + dmTxt + ')</div>'
+        '<div class="mm-note">' + escapeHtml(metricLabel(state.metric)) + ' (' + escapeHtml(dmTxt) + ')</div>'
       );
     }
 
     const val = metric.geographies.ON[field][key];
-    const metricLower = metric.label.charAt(0).toLowerCase() + metric.label.slice(1);
     return (
-      '<h3>Ontario</h3>' +
-      '<p class="mm-warn">Only province-wide data is available for this area – it falls outside the 15 tracked metropolitan areas.</p>' +
+      '<h3>' + escapeHtml(T("provinceHeading")) + '</h3>' +
+      '<p class="mm-warn">' + escapeHtml(T("provinceWarning")) + '</p>' +
       '<div class="mm-period">' + escapeHtml(label) + '</div>' +
       '<div class="mm-value">' + formatMetricValue(val) + '</div>' +
-      '<div class="mm-note">Ontario-wide ' + escapeHtml(metricLower) + ' (' + dmTxt + ')</div>'
+      '<div class="mm-note">' + escapeHtml(provinceNoteText(state.metric)) + '</div>'
     );
   }
 
@@ -469,13 +736,11 @@
     const key = currentPeriodKey();
     const label = periodLabel(key);
     const yearOfKey = key.slice(0, 4);
-    const name = kind === "province" ? "Ontario" : DATA.metrics.loanValue.geographies[id].name;
+    const name = kind === "province" ? T("provinceHeading") : DATA.metrics.loanValue.geographies[id].name;
 
     document.getElementById("detailTitle").textContent = name;
-    document.getElementById("detailSub").textContent = label + " · " + (state.real ? "chained 2017 dollars" : "nominal dollars");
-    document.getElementById("detailNote").textContent = kind === "province"
-      ? "Province-wide average – outside the 15 tracked metropolitan areas."
-      : "";
+    document.getElementById("detailSub").textContent = label + " · " + (state.real ? T("realDollars") : T("nominalDollars"));
+    document.getElementById("detailNote").textContent = kind === "province" ? T("provinceDetailNote") : "";
 
     const quarterHighlightIndex = state.granularity === "quarter" ? DATA.quarters.indexOf(key) : null;
     const yearHighlightIndex = DATA.years.indexOf(yearOfKey);
@@ -486,24 +751,27 @@
       const geo = metric.geographies[id];
       const curVal = valueAt(metric, id, state.granularity, state.real, key);
       const altVal = valueAt(metric, id, state.granularity, !state.real, key);
-      const altLabel = state.real ? "nominal" : "chained 2017";
+      const altLabel = state.real ? T("altNominal") : T("altReal");
 
       const qSeries = DATA.quarters.map((q) => geo[state.real ? "realQ" : "nominalQ"][q]);
       const ySeries = DATA.years.map((y) => geo[state.real ? "realY" : "nominalY"][y]);
 
+      const qStart = quarterKeyDisplay(DATA.quarters[0]);
+      const qEnd = quarterKeyDisplay(DATA.quarters[DATA.quarters.length - 1]);
+
       html +=
         '<div class="metric-block">' +
-          '<div class="metric-block-title">' + escapeHtml(metric.label) + '</div>' +
+          '<div class="metric-block-title">' + escapeHtml(metricLabel(mkey)) + '</div>' +
           '<div class="metric-current">' +
             '<span class="mc-value">' + formatValueForMetric(mkey, curVal) + '</span>' +
-            (altVal == null ? "" : '<span class="mc-alt">(' + formatValueForMetric(mkey, altVal) + " " + altLabel + ')</span>') +
+            (altVal == null ? "" : '<span class="mc-alt">(' + formatValueForMetric(mkey, altVal) + " " + escapeHtml(altLabel) + ')</span>') +
           '</div>' +
           '<div class="chart-block">' +
-            '<div class="chart-label">Quarterly, ' + DATA.quarters[0] + '–' + DATA.quarters[DATA.quarters.length - 1] + '</div>' +
+            '<div class="chart-label">' + escapeHtml(T("quarterlyChartLabel")) + ', ' + qStart + '–' + qEnd + '</div>' +
             sparkline(qSeries, { highlightIndex: quarterHighlightIndex }) +
           '</div>' +
           '<div class="chart-block">' +
-            '<div class="chart-label">Yearly, ' + DATA.years[0] + '–' + DATA.years[DATA.years.length - 1] + '</div>' +
+            '<div class="chart-label">' + escapeHtml(T("yearlyChartLabel")) + ', ' + DATA.years[0] + '–' + DATA.years[DATA.years.length - 1] + '</div>' +
             sparkline(ySeries, { highlightIndex: yearHighlightIndex }) +
           '</div>' +
         '</div>';

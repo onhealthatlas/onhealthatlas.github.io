@@ -318,6 +318,26 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* MapLibre squares off the content's corner nearest the tip so the tip sits
+   flush against the box (see its own anchor-* rules in maplibregl.css). Our
+   blanket border-radius above has equal CSS specificity and loads after the
+   library's stylesheet, so it was winning the cascade and re-rounding that
+   corner -- leaving the tip visually detached on all four corner-anchored
+   popups. These rules add a class to raise specificity and restore the
+   square corner so the tip reconnects. */
+.chn-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-content {
+  border-top-left-radius: 0;
+}
+.chn-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-content {
+  border-top-right-radius: 0;
+}
+.chn-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-content {
+  border-bottom-left-radius: 0;
+}
+.chn-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-content {
+  border-bottom-right-radius: 0;
+}
+
 .chn-popup-title {
   margin: 0 0 4px;
   font-size: 14px;
@@ -383,7 +403,7 @@ body {
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.4;
-  margin-top: 8px;
+  margin: 0 0 8px;
 }
 
 /* ---------- Right-hand chart pane ---------- */

@@ -34,8 +34,8 @@ const STRINGS = {
     popup_pct: "Households in core housing need",
     popup_num: "Number of households",
     popup_na: "Not available (data suppressed)",
-    popup_outside_title: "Outside the 16 CMAs",
-    popup_outside_note: "Only Ontario-wide (province-level) figures are available for this area – census metropolitan area-level data has not been published here.",
+    popup_outside_title: "Ontario",
+    popup_outside_note: "Only province-wide data is available for this area – it falls outside the 16 tracked metropolitan areas.",
     popup_ontario_pct: "Ontario incidence",
     popup_ontario_num: "Ontario households",
     play_label: "Play",
@@ -64,8 +64,8 @@ const STRINGS = {
     popup_pct: "Ménages ayant un besoin de logement de base",
     popup_num: "Nombre de ménages",
     popup_na: "Non disponible (donnée supprimée)",
-    popup_outside_title: "À l'extérieur des 16 RMR",
-    popup_outside_note: "Seules les données provinciales sont disponibles pour cette zone – aucune donnée à l'échelle de la région métropolitaine de recensement n'a été publiée ici.",
+    popup_outside_title: "Ontario",
+    popup_outside_note: "Seules les données provinciales sont disponibles pour cette zone – elle se situe à l'extérieur des 16 régions métropolitaines de recensement suivies.",
     popup_ontario_pct: "Incidence en Ontario",
     popup_ontario_num: "Ménages en Ontario",
     play_label: "Lecture",
@@ -405,10 +405,10 @@ function buildOntarioPopupHtml() {
 
   return `
     <div class="chn-popup-title">${escapeHtml(t("popup_outside_title"))}</div>
+    <div class="chn-popup-note">${escapeHtml(t("popup_outside_note"))}</div>
     <div class="chn-popup-year">${escapeHtml(t("popup_year"))}: ${year}</div>
     <div class="${pctRowClass}"><span class="label">${escapeHtml(t("popup_ontario_pct"))}</span><span class="${pctClass}">${escapeHtml(pctText)}</span></div>
     <div class="${numRowClass}"><span class="label">${escapeHtml(t("popup_ontario_num"))}</span><span class="${numClass}">${escapeHtml(numText)}</span></div>
-    <div class="chn-popup-note">${escapeHtml(t("popup_outside_note"))}</div>
   `;
 }
 

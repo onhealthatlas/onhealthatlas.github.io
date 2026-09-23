@@ -15,74 +15,84 @@
   <link rel="stylesheet" href="app.css" />
 </head>
 <body>
-  <div id="map"></div>
+  <div id="mapWrap">
+    <div id="map"></div>
 
-  <!-- Left control panel -->
-  <div id="panel" class="panel">
-    <button id="panel-collapse" class="panel-collapse" type="button" aria-label="Collapse panel">&#8250;</button>
-    <div class="panel-inner">
-      <div class="panel-header">
-        <h1 id="t-title" class="panel-title">Core housing need</h1>
-        <p id="t-subtitle" class="panel-subtitle">Ontario &amp; 16 census metropolitan areas, 2018&ndash;2024</p>
-      </div>
-
-      <div class="segmented" role="group" aria-label="Metric">
-        <button id="metric-pct" class="segmented-btn is-active" type="button" data-metric="pct">Incidence (%)</button>
-        <button id="metric-num" class="segmented-btn" type="button" data-metric="num">Number of households</button>
-      </div>
-
-      <div class="year-block">
-        <div class="year-row">
-          <span id="year-display" class="year-display">2024</span>
-          <span id="t-unit" class="year-unit">annual estimate</span>
-        </div>
-        <div class="slider-row">
-          <button id="play-btn" class="play-btn" type="button" aria-label="Play">
-            <svg id="play-icon" viewBox="0 0 16 16" width="14" height="14"><path d="M3 1.5v13l11-6.5z" fill="currentColor"/></svg>
-            <svg id="pause-icon" viewBox="0 0 16 16" width="14" height="14" style="display:none"><path d="M3 1.5h3.2v13H3zM9.8 1.5H13v13H9.8z" fill="currentColor"/></svg>
-          </button>
-          <input id="year-slider" class="year-slider" type="range" min="0" max="6" step="1" value="6" />
-        </div>
-        <div class="slider-endpoints">
-          <span>2018</span>
-          <span>2024</span>
-        </div>
-      </div>
-
-      <div class="legend-block">
-        <div id="t-legend-label" class="legend-label">INCIDENCE OF HOUSEHOLDS IN CORE HOUSING NEED</div>
-        <div id="legend-bar" class="legend-bar"></div>
-        <div class="legend-endpoints">
-          <span id="legend-min">5%</span>
-          <span id="legend-max">25%</span>
-        </div>
-        <label class="legend-note-row">
-          <span id="t-outside-note" class="legend-note">Grey areas fall outside the 16 CMAs shown &ndash; Ontario-wide data only.</span>
-        </label>
-      </div>
-
-      <div id="chart-panel" class="chart-panel">
-        <div class="chart-panel-head">
-          <span id="chart-title" class="chart-title">Ontario</span>
-          <span id="t-chart-subtitle" class="chart-subtitle">2018&ndash;2024</span>
+    <!-- Left control panel -->
+    <div id="panel" class="panel">
+      <div class="panel-inner">
+        <div class="panel-header">
+          <h1 id="t-title" class="panel-title">Core housing need</h1>
+          <p id="t-subtitle" class="panel-subtitle">Ontario &amp; 16 census metropolitan areas, 2018&ndash;2024</p>
         </div>
 
-        <div class="chart-block">
-          <div id="t-chart-pct-label" class="chart-mini-label">Incidence of core housing need (%)</div>
-          <svg id="chart-pct" class="chart-svg" viewBox="0 0 300 74" preserveAspectRatio="none"></svg>
+        <div class="segmented" role="group" aria-label="Metric">
+          <button id="metric-pct" class="segmented-btn is-active" type="button" data-metric="pct">Incidence (%)</button>
+          <button id="metric-num" class="segmented-btn" type="button" data-metric="num">Number of households</button>
         </div>
-        <div class="chart-block">
-          <div id="t-chart-num-label" class="chart-mini-label">Number of households in core housing need</div>
-          <svg id="chart-num" class="chart-svg" viewBox="0 0 300 74" preserveAspectRatio="none"></svg>
-        </div>
-        <div id="chart-tooltip" class="chart-tooltip" style="display:none"></div>
-      </div>
 
-      <div class="panel-footer">
-        <p id="t-footer-1" class="footer-note">Source: Statistics Canada, Canadian Income Survey, via the Canada Mortgage and Housing Corporation Housing Data Portal. Data last updated May 2026.</p>
-        <p id="t-footer-2" class="footer-note">Some CMA&ndash;year estimates are not published due to data quality (too few observations or high variability) and appear as gaps.</p>
+        <div class="year-block">
+          <div class="year-row">
+            <span id="year-display" class="year-display">2024</span>
+            <span id="t-unit" class="year-unit">annual estimate</span>
+          </div>
+          <div class="slider-row">
+            <button id="play-btn" class="play-btn" type="button" aria-label="Play">
+              <svg id="play-icon" viewBox="0 0 16 16" width="14" height="14"><path d="M3 1.5v13l11-6.5z" fill="currentColor"/></svg>
+              <svg id="pause-icon" viewBox="0 0 16 16" width="14" height="14" style="display:none"><path d="M3 1.5h3.2v13H3zM9.8 1.5H13v13H9.8z" fill="currentColor"/></svg>
+            </button>
+            <input id="year-slider" class="year-slider" type="range" min="0" max="6" step="1" value="6" />
+          </div>
+          <div class="slider-endpoints">
+            <span>2018</span>
+            <span>2024</span>
+          </div>
+        </div>
+
+        <div class="legend-block">
+          <div id="t-legend-label" class="legend-label">INCIDENCE OF HOUSEHOLDS IN CORE HOUSING NEED</div>
+          <div id="legend-bar" class="legend-bar"></div>
+          <div class="legend-endpoints">
+            <span id="legend-min">5%</span>
+            <span id="legend-max">25%</span>
+          </div>
+          <div class="legend-note-row">
+            <span id="t-outside-note" class="legend-note">Grey areas fall outside the 16 CMAs shown &ndash; Ontario-wide data only.</span>
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <p id="t-footer-1" class="footer-note">Source: Statistics Canada, Canadian Income Survey, via the Canada Mortgage and Housing Corporation Housing Data Portal. Data last updated May 2026.</p>
+          <p id="t-footer-2" class="footer-note">Some CMA&ndash;year estimates are not published due to data quality (too few observations or high variability) and appear as gaps.</p>
+        </div>
       </div>
     </div>
+  </div>
+
+  <!-- Right-hand chart pane -->
+  <div id="rightPane">
+    <div class="rp-header">
+      <h2 id="chart-title" class="rp-title">Ontario</h2>
+      <p id="t-chart-subtitle" class="rp-subtitle">2018&ndash;2024</p>
+    </div>
+
+    <div class="metric-block">
+      <div id="t-chart-pct-label" class="metric-block-title">Incidence of core housing need (%)</div>
+      <div class="metric-current">
+        <span id="chart-pct-current" class="mc-value">&ndash;</span>
+      </div>
+      <svg id="chart-pct" class="chart-svg" viewBox="0 0 300 90" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="metric-block">
+      <div id="t-chart-num-label" class="metric-block-title">Number of households in core housing need</div>
+      <div class="metric-current">
+        <span id="chart-num-current" class="mc-value">&ndash;</span>
+      </div>
+      <svg id="chart-num" class="chart-svg" viewBox="0 0 300 90" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div id="chart-tooltip" class="chart-tooltip" style="display:none"></div>
   </div>
 
   <script src="app.js"></script>

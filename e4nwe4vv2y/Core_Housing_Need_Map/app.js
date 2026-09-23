@@ -108,9 +108,12 @@ const DATA = {
    2. Colour ramp (dataviz skill: single-hue sequential, blue 100->700)
    --------------------------------------------------------------------- */
 
-const RAMP_HEX = ["#cde2fb", "#9ec5f4", "#5598e7", "#2a78d6", "#1c5cab", "#104281", "#0d366b"];
+const RAMP_HEX = [
+  "#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7",
+  "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"
+];
 const METRIC_DOMAIN = { pct: [5, 25], num: [0, 500000] };
-const NO_DATA_COLOR = "#d9d7cf";
+const NO_DATA_COLOR = "#e2e4e8";
 
 function colorExpression(metric, year) {
   const prop = metric + "_" + year;
@@ -136,7 +139,9 @@ function colorExpression(metric, year) {
 function formatPct(v) {
   if (v === null || v === undefined) return null;
   const s = v.toFixed(1);
-  return lang === "fr" ? s.replace(".", ",") + " %" : s + "%";
+  // French uses a non-breaking space before "%" -- a plain space here would
+  // let the browser wrap the number and the sign onto separate lines.
+  return lang === "fr" ? s.replace(".", ",") + " %" : s + "%";
 }
 
 function formatNum(v) {
@@ -159,8 +164,8 @@ const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
 const ONTARIO_BOUNDS = [
-  [-95.156, 41.6769],
-  [-74.3204, 56.8617]
+  [-95.5, 41.5],
+  [-73.8, 57.0]
 ];
 
 const hadInitialHash = !!location.hash && location.hash.length > 1;
@@ -180,15 +185,18 @@ window.chnMap = map; // exposed for debugging / console use
 map.on("style.load", () => {
   map.setProjection({ type: "globe" });
   if (!hadInitialHash) {
+    // The floating left panel overlaps the map, so it needs left padding.
+    // The right-hand chart pane is a real layout sidebar (see #mapWrap /
+    // #rightPane in the HTML) that already shrinks the map container's
+    // own width, so it needs no padding of its own here.
     map.fitBounds(ONTARIO_BOUNDS, {
-      padding: { top: 40, bottom: 40, left: 380, right: 40 },
+      padding: { top: 40, bottom: 40, left: 360, right: 40 },
       duration: 0
     });
   }
 });
 
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-map.addControl(new maplibregl.FullscreenControl(), "top-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
 
 if (typeof maplibregl.GlobeControl === "function") {
@@ -273,24 +281,9 @@ function updateMapColors() {
 map.on("load", () => {
   updateMapColors();
 
-  // Richer hover / selection styling for the CMA outline, layered on top
-  // of the simple hover expression already present in style.json.
-  map.setPaintProperty("cma-line", "line-color", [
-    "case",
-    ["boolean", ["feature-state", "selected"], false],
-    "#eb6834",
-    "#184f95"
-  ]);
-  map.setPaintProperty("cma-line", "line-width", [
-    "case",
-    ["boolean", ["feature-state", "selected"], false],
-    3,
-    ["boolean", ["feature-state", "hover"], false],
-    2.5,
-    1.25
-  ]);
-
-  // Select Ontario by default so the chart isn't empty on first paint
+  // Select Ontario by default so the chart pane isn't empty on first paint.
+  // (The CMA/province fill, outline, and hover-only line-width are already
+  // defined in style.json, matching the reference map's styling.)
   setSelection({ type: "ontario", uid: null });
 });
 
@@ -326,23 +319,10 @@ map.on("mouseleave", "ontario-fill", () => {
   map.getCanvas().style.cursor = "";
 });
 
-let selectedCmaId = null;
 let activePopup = null;
 
-function clearSelectedFeatureState() {
-  if (selectedCmaId !== null) {
-    map.setFeatureState({ source: "cmas-data", id: selectedCmaId }, { selected: false });
-    selectedCmaId = null;
-  }
-}
-
 function setSelection(sel) {
-  clearSelectedFeatureState();
   state.selection = sel;
-  if (sel.type === "cma") {
-    selectedCmaId = sel.uid;
-    map.setFeatureState({ source: "cmas-data", id: selectedCmaId }, { selected: true });
-  }
   updateChartTitle();
   renderChart();
 }
@@ -529,25 +509,16 @@ playBtn.addEventListener("click", () => {
 });
 
 /* ---------------------------------------------------------------------
-   10. Panel collapse
-   --------------------------------------------------------------------- */
-
-const panelEl = document.getElementById("panel");
-const panelCollapseBtn = document.getElementById("panel-collapse");
-panelCollapseBtn.addEventListener("click", () => {
-  panelEl.classList.toggle("is-collapsed");
-  panelCollapseBtn.innerHTML = panelEl.classList.contains("is-collapsed") ? "&#8249;" : "&#8250;";
-});
-
-/* ---------------------------------------------------------------------
-   11. Mini line charts
+   10. Charts (right-hand pane)
    --------------------------------------------------------------------- */
 
 const chartTitleEl = document.getElementById("chart-title");
 const chartPctSvg = document.getElementById("chart-pct");
 const chartNumSvg = document.getElementById("chart-num");
+const chartPctCurrentEl = document.getElementById("chart-pct-current");
+const chartNumCurrentEl = document.getElementById("chart-num-current");
 const chartTooltip = document.getElementById("chart-tooltip");
-const chartPanel = document.getElementById("chart-panel");
+const rightPaneEl = document.getElementById("rightPane");
 
 function updateChartTitle() {
   if (state.selection.type === "cma") {
@@ -563,11 +534,11 @@ function currentEntity() {
 }
 
 const CHART_W = 300;
-const CHART_H = 74;
+const CHART_H = 90;
 const CHART_PAD_L = 4;
 const CHART_PAD_R = 4;
-const CHART_PAD_T = 8;
-const CHART_PAD_B = 14;
+const CHART_PAD_T = 10;
+const CHART_PAD_B = 16;
 
 function buildSeries(entity, metric) {
   const table = metric === "pct" ? entity.pct : entity.num;
@@ -721,9 +692,9 @@ function onChartHover(evt, yearIdx) {
     escapeHtml(t("chart_pct_label")) + ": " + escapeHtml(pctText) + "<br/>" +
     escapeHtml(t("chart_num_label")) + ": " + escapeHtml(numText);
 
-  const panelRect = chartPanel.getBoundingClientRect();
-  const left = evt.clientX - panelRect.left;
-  const top = evt.clientY - panelRect.top - 10;
+  const paneRect = rightPaneEl.getBoundingClientRect();
+  const left = evt.clientX - paneRect.left;
+  const top = evt.clientY - paneRect.top - 10 + rightPaneEl.scrollTop;
   chartTooltip.style.left = left + "px";
   chartTooltip.style.top = top + "px";
   chartTooltip.style.display = "block";
@@ -742,6 +713,11 @@ function renderChart() {
   if (!entity) return;
   renderMiniChart(chartPctSvg, buildSeries(entity, "pct"), "pct");
   renderMiniChart(chartNumSvg, buildSeries(entity, "num"), "num");
+
+  const pctVal = metricValue(entity, "pct", currentYear());
+  const numVal = metricValue(entity, "num", currentYear());
+  chartPctCurrentEl.textContent = pctVal === null ? t("popup_na") : formatPct(pctVal);
+  chartNumCurrentEl.textContent = numVal === null ? t("popup_na") : formatNum(numVal);
 }
 
 /* ---------------------------------------------------------------------

@@ -379,14 +379,16 @@ function buildCmaPopupHtml(uid) {
   const numVal = metricValue(entry, "num", year);
   const pctText = pctVal === null ? t("popup_na") : formatPct(pctVal);
   const numText = numVal === null ? t("popup_na") : formatNum(numVal);
+  const pctRowClass = "chn-popup-row" + (pctVal === null ? " is-suppressed" : "");
+  const numRowClass = "chn-popup-row" + (numVal === null ? " is-suppressed" : "");
   const pctClass = "value" + (pctVal === null ? " is-na" : "");
   const numClass = "value" + (numVal === null ? " is-na" : "");
 
   return `
     <div class="chn-popup-title">${escapeHtml(cmaDisplayName(uid))}</div>
     <div class="chn-popup-year">${escapeHtml(t("popup_year"))}: ${year}</div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_pct"))}</span><span class="${pctClass}">${escapeHtml(pctText)}</span></div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_num"))}</span><span class="${numClass}">${escapeHtml(numText)}</span></div>
+    <div class="${pctRowClass}"><span class="label">${escapeHtml(t("popup_pct"))}</span><span class="${pctClass}">${escapeHtml(pctText)}</span></div>
+    <div class="${numRowClass}"><span class="label">${escapeHtml(t("popup_num"))}</span><span class="${numClass}">${escapeHtml(numText)}</span></div>
   `;
 }
 
@@ -396,14 +398,16 @@ function buildOntarioPopupHtml() {
   const numVal = metricValue(DATA.ontario, "num", year);
   const pctText = pctVal === null ? t("popup_na") : formatPct(pctVal);
   const numText = numVal === null ? t("popup_na") : formatNum(numVal);
+  const pctRowClass = "chn-popup-row" + (pctVal === null ? " is-suppressed" : "");
+  const numRowClass = "chn-popup-row" + (numVal === null ? " is-suppressed" : "");
   const pctClass = "value" + (pctVal === null ? " is-na" : "");
   const numClass = "value" + (numVal === null ? " is-na" : "");
 
   return `
     <div class="chn-popup-title">${escapeHtml(t("popup_outside_title"))}</div>
     <div class="chn-popup-year">${escapeHtml(t("popup_year"))}: ${year}</div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_ontario_pct"))}</span><span class="${pctClass}">${escapeHtml(pctText)}</span></div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_ontario_num"))}</span><span class="${numClass}">${escapeHtml(numText)}</span></div>
+    <div class="${pctRowClass}"><span class="label">${escapeHtml(t("popup_ontario_pct"))}</span><span class="${pctClass}">${escapeHtml(pctText)}</span></div>
+    <div class="${numRowClass}"><span class="label">${escapeHtml(t("popup_ontario_num"))}</span><span class="${numClass}">${escapeHtml(numText)}</span></div>
     <div class="chn-popup-note">${escapeHtml(t("popup_outside_note"))}</div>
   `;
 }

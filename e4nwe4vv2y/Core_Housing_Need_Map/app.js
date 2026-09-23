@@ -669,14 +669,17 @@ function renderMiniChart(svg, series, metric) {
     svg.appendChild(c);
   });
 
-  // start / end year labels
-  [0, YEARS.length - 1].forEach((i) => {
+  // year labels for every year along the x-axis, not just the endpoints
+  YEARS.forEach((year, i) => {
     const label = document.createElementNS(svgns, "text");
     label.setAttribute("x", String(xForIndex(i)));
     label.setAttribute("y", String(CHART_H - 2));
-    label.setAttribute("text-anchor", i === 0 ? "start" : "end");
+    let anchor = "middle";
+    if (i === 0) anchor = "start";
+    else if (i === YEARS.length - 1) anchor = "end";
+    label.setAttribute("text-anchor", anchor);
     label.setAttribute("class", "axis-label");
-    label.textContent = String(series[i].year);
+    label.textContent = String(year);
     svg.appendChild(label);
   });
 

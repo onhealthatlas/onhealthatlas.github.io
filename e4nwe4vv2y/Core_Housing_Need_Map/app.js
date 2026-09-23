@@ -88,7 +88,7 @@ function t(key) {
 const state = {
   metric: "pct",          // 'pct' | 'num'
   yearIndex: YEARS.length - 1,
-  selection: { type: "ontario", uid: null }, // {type:'cma', uid} | {type:'ontario'}
+  selection: null, // null | {type:'cma', uid} | {type:'ontario', uid: null}
   playing: false,
   playTimer: null,
   hoverYearIndex: null
@@ -280,11 +280,7 @@ function updateMapColors() {
 
 map.on("load", () => {
   updateMapColors();
-
-  // Select Ontario by default so the chart pane isn't empty on first paint.
-  // (The CMA/province fill, outline, and hover-only line-width are already
-  // defined in style.json, matching the reference map's styling.)
-  setSelection({ type: "ontario", uid: null });
+  // The right-hand pane stays closed until the user clicks a CMA or Ontario.
 });
 
 /* ---------------------------------------------------------------------
@@ -320,11 +316,26 @@ map.on("mouseleave", "ontario-fill", () => {
 });
 
 let activePopup = null;
+let suppressPopupClose = false;
 
-function setSelection(sel) {
+function openSelection(sel) {
   state.selection = sel;
+  rightPaneEl.classList.add("is-open");
+  map.resize();
   updateChartTitle();
   renderChart();
+}
+
+function closeSelection() {
+  state.selection = null;
+  rightPaneEl.classList.remove("is-open");
+  if (activePopup) {
+    suppressPopupClose = true;
+    activePopup.remove();
+    activePopup = null;
+    suppressPopupClose = false;
+  }
+  map.resize();
 }
 
 map.on("click", (e) => {
@@ -332,21 +343,22 @@ map.on("click", (e) => {
   if (cmaHits.length) {
     const f = cmaHits[0];
     const uid = f.properties.CMAUID;
-    setSelection({ type: "cma", uid });
+    openSelection({ type: "cma", uid });
     showCmaPopup(uid, e.lngLat);
     return;
   }
   const onHits = map.queryRenderedFeatures(e.point, { layers: ["ontario-fill"] });
   if (onHits.length) {
-    setSelection({ type: "ontario", uid: null });
+    openSelection({ type: "ontario", uid: null });
     showOntarioPopup(e.lngLat);
     return;
   }
-  // Click outside Ontario entirely: close any open popup but keep selection.
-  if (activePopup) {
-    activePopup.remove();
-    activePopup = null;
-  }
+  // Click outside Ontario entirely: close the popup and the right-hand pane.
+  closeSelection();
+});
+
+document.getElementById("rp-close").addEventListener("click", () => {
+  closeSelection();
 });
 
 /* ---------------------------------------------------------------------
@@ -367,12 +379,14 @@ function buildCmaPopupHtml(uid) {
   const numVal = metricValue(entry, "num", year);
   const pctText = pctVal === null ? t("popup_na") : formatPct(pctVal);
   const numText = numVal === null ? t("popup_na") : formatNum(numVal);
+  const pctClass = "value" + (pctVal === null ? " is-na" : "");
+  const numClass = "value" + (numVal === null ? " is-na" : "");
 
   return `
     <div class="chn-popup-title">${escapeHtml(cmaDisplayName(uid))}</div>
     <div class="chn-popup-year">${escapeHtml(t("popup_year"))}: ${year}</div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_pct"))}</span><span class="value">${escapeHtml(pctText)}</span></div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_num"))}</span><span class="value">${escapeHtml(numText)}</span></div>
+    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_pct"))}</span><span class="${pctClass}">${escapeHtml(pctText)}</span></div>
+    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_num"))}</span><span class="${numClass}">${escapeHtml(numText)}</span></div>
   `;
 }
 
@@ -382,33 +396,55 @@ function buildOntarioPopupHtml() {
   const numVal = metricValue(DATA.ontario, "num", year);
   const pctText = pctVal === null ? t("popup_na") : formatPct(pctVal);
   const numText = numVal === null ? t("popup_na") : formatNum(numVal);
+  const pctClass = "value" + (pctVal === null ? " is-na" : "");
+  const numClass = "value" + (numVal === null ? " is-na" : "");
 
   return `
     <div class="chn-popup-title">${escapeHtml(t("popup_outside_title"))}</div>
     <div class="chn-popup-year">${escapeHtml(t("popup_year"))}: ${year}</div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_ontario_pct"))}</span><span class="value">${escapeHtml(pctText)}</span></div>
-    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_ontario_num"))}</span><span class="value">${escapeHtml(numText)}</span></div>
+    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_ontario_pct"))}</span><span class="${pctClass}">${escapeHtml(pctText)}</span></div>
+    <div class="chn-popup-row"><span class="label">${escapeHtml(t("popup_ontario_num"))}</span><span class="${numClass}">${escapeHtml(numText)}</span></div>
     <div class="chn-popup-note">${escapeHtml(t("popup_outside_note"))}</div>
   `;
 }
 
 function showCmaPopup(uid, lngLat) {
-  if (activePopup) activePopup.remove();
+  if (activePopup) {
+    suppressPopupClose = true;
+    activePopup.remove();
+    suppressPopupClose = false;
+  }
   activePopup = new maplibregl.Popup({ closeButton: true, maxWidth: "260px", className: "chn-popup" })
     .setLngLat(lngLat)
     .setHTML(buildCmaPopupHtml(uid))
     .addTo(map);
   activePopup._chnType = "cma";
   activePopup._chnUid = uid;
+  activePopup.on("close", onPopupClosed);
 }
 
 function showOntarioPopup(lngLat) {
-  if (activePopup) activePopup.remove();
+  if (activePopup) {
+    suppressPopupClose = true;
+    activePopup.remove();
+    suppressPopupClose = false;
+  }
   activePopup = new maplibregl.Popup({ closeButton: true, maxWidth: "260px", className: "chn-popup" })
     .setLngLat(lngLat)
     .setHTML(buildOntarioPopupHtml())
     .addTo(map);
   activePopup._chnType = "ontario";
+  activePopup.on("close", onPopupClosed);
+}
+
+/* Fires whenever a popup is removed, whether by the user clicking its own
+   × button, or programmatically (a new popup replacing it, or closeSelection
+   tearing it down). Only a genuine user dismissal should also close the
+   right-hand pane, so it's guarded by suppressPopupClose. */
+function onPopupClosed() {
+  if (suppressPopupClose) return;
+  activePopup = null;
+  closeSelection();
 }
 
 function refreshActivePopup() {
@@ -517,10 +553,10 @@ const chartPctSvg = document.getElementById("chart-pct");
 const chartNumSvg = document.getElementById("chart-num");
 const chartPctCurrentEl = document.getElementById("chart-pct-current");
 const chartNumCurrentEl = document.getElementById("chart-num-current");
-const chartTooltip = document.getElementById("chart-tooltip");
 const rightPaneEl = document.getElementById("rightPane");
 
 function updateChartTitle() {
+  if (!state.selection) return;
   if (state.selection.type === "cma") {
     chartTitleEl.textContent = cmaDisplayName(state.selection.uid);
   } else {
@@ -529,6 +565,7 @@ function updateChartTitle() {
 }
 
 function currentEntity() {
+  if (!state.selection) return null;
   if (state.selection.type === "cma") return DATA.cma[state.selection.uid];
   return DATA.ontario;
 }
@@ -639,16 +676,7 @@ function renderMiniChart(svg, series, metric) {
     svg.appendChild(label);
   });
 
-  // hover guide line (hidden until hover)
-  const guide = document.createElementNS(svgns, "line");
-  guide.setAttribute("class", "hover-line");
-  guide.setAttribute("id", svg.id + "-guide");
-  guide.setAttribute("y1", String(CHART_PAD_T));
-  guide.setAttribute("y2", String(CHART_H - CHART_PAD_B));
-  guide.style.display = "none";
-  svg.appendChild(guide);
-
-  // hit areas per year, for hover tooltip
+  // hit areas per year, so clicking a point on the chart jumps to that year
   const sliceW = (CHART_W - CHART_PAD_L - CHART_PAD_R) / (YEARS.length - 1);
   series.forEach((pt, i) => {
     const rect = document.createElementNS(svgns, "rect");
@@ -658,54 +686,12 @@ function renderMiniChart(svg, series, metric) {
     rect.setAttribute("width", String(sliceW));
     rect.setAttribute("height", String(CHART_H));
     rect.setAttribute("class", "hit-area");
-    rect.addEventListener("mousemove", (evt) => onChartHover(evt, i));
-    rect.addEventListener("mouseleave", onChartLeave);
     rect.addEventListener("click", () => {
       stopPlay();
       setYearIndex(i);
     });
     svg.appendChild(rect);
   });
-}
-
-function onChartHover(evt, yearIdx) {
-  const entity = currentEntity();
-  const pctSeries = buildSeries(entity, "pct");
-  const numSeries = buildSeries(entity, "num");
-  const pctVal = pctSeries[yearIdx].value;
-  const numVal = numSeries[yearIdx].value;
-
-  [chartPctSvg, chartNumSvg].forEach((svg) => {
-    const guide = document.getElementById(svg.id + "-guide");
-    if (guide) {
-      guide.style.display = "";
-      const x = xForIndex(yearIdx);
-      guide.setAttribute("x1", x.toFixed(2));
-      guide.setAttribute("x2", x.toFixed(2));
-    }
-  });
-
-  const pctText = pctVal === null ? t("tooltip_na") : formatPct(pctVal);
-  const numText = numVal === null ? t("tooltip_na") : formatNum(numVal);
-  chartTooltip.innerHTML =
-    "<strong>" + YEARS[yearIdx] + "</strong><br/>" +
-    escapeHtml(t("chart_pct_label")) + ": " + escapeHtml(pctText) + "<br/>" +
-    escapeHtml(t("chart_num_label")) + ": " + escapeHtml(numText);
-
-  const paneRect = rightPaneEl.getBoundingClientRect();
-  const left = evt.clientX - paneRect.left;
-  const top = evt.clientY - paneRect.top - 10 + rightPaneEl.scrollTop;
-  chartTooltip.style.left = left + "px";
-  chartTooltip.style.top = top + "px";
-  chartTooltip.style.display = "block";
-}
-
-function onChartLeave() {
-  [chartPctSvg, chartNumSvg].forEach((svg) => {
-    const guide = document.getElementById(svg.id + "-guide");
-    if (guide) guide.style.display = "none";
-  });
-  chartTooltip.style.display = "none";
 }
 
 function renderChart() {
@@ -718,6 +704,8 @@ function renderChart() {
   const numVal = metricValue(entity, "num", currentYear());
   chartPctCurrentEl.textContent = pctVal === null ? t("popup_na") : formatPct(pctVal);
   chartNumCurrentEl.textContent = numVal === null ? t("popup_na") : formatNum(numVal);
+  chartPctCurrentEl.classList.toggle("is-na", pctVal === null);
+  chartNumCurrentEl.classList.toggle("is-na", numVal === null);
 }
 
 /* ---------------------------------------------------------------------

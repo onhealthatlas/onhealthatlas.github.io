@@ -296,6 +296,7 @@
     }
 
     .field--dest {
+      padding-right: 12px;
       background: #fafafa;
       border-radius: 0 0 var(--radius) var(--radius);
     }
@@ -314,15 +315,6 @@
       font-size: 12.5px;
     }
 
-    .lock {
-      flex: none;
-      width: 32px;
-      display: flex;
-      justify-content: center;
-      color: #9a9a9a;
-    }
-
-    .lock svg { width: 14px; height: 14px; }
 
     .suggestions {
       position: absolute;
@@ -421,6 +413,37 @@
     }
 
     .result .actions { margin-top: 12px; }
+
+    /* Copy link / Email / Print on one line */
+    .actions--route { flex-wrap: nowrap; gap: 6px; }
+    .actions--route .btn { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; }
+
+    /* ---------- Print (only used when printing directions) ---------- */
+    #printView { display: none; }
+
+    @media print {
+      @page { margin: 14mm; }
+      body.printing-directions { background: #fff; height: auto; }
+      body.printing-directions .app,
+      body.printing-directions .toast { display: none !important; }
+      body.printing-directions #printView { display: block; }
+    }
+
+    #printView {
+      font-size: 12pt;
+      line-height: 1.4;
+      color: #000;
+    }
+
+    #printView h1 { font-size: 17pt; margin: 0 0 4pt; }
+    #printView .p-meta { margin: 0 0 2pt; }
+    #printView .p-summary { margin: 10pt 0; font-size: 13pt; }
+    #printView .p-summary strong { font-size: 15pt; }
+    #printView .p-map { display: block; width: auto; height: auto; max-width: 100%; max-height: 95mm; border: 1px solid #ccc; margin: 6pt auto 10pt; break-inside: avoid; }
+    #printView ol { margin: 0; padding-left: 22pt; }
+    #printView li { padding: 3pt 0; border-bottom: 1px solid #ddd; break-inside: avoid; }
+    #printView li small { color: #444; }
+    #printView .p-foot { margin-top: 10pt; font-size: 9pt; color: #444; word-break: break-all; white-space: pre-line; }
 
     .steps {
       list-style: none;
@@ -648,9 +671,6 @@
                 Dr. Adil Shamji, MPP – Don Valley East Constituency Office
                 <small>1200 Lawrence Ave. E, Suite L02, Toronto</small>
               </div>
-              <span class="lock" title="The destination is fixed to the constituency office" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 10.5V7.5a4 4 0 018 0v3" stroke="currentColor" stroke-width="2"/></svg>
-              </span>
             </div>
           </div>
 
@@ -668,14 +688,18 @@
               </div>
             </div>
 
-            <div class="actions">
+            <div class="actions actions--route">
               <button type="button" class="btn" id="btnCopyRoute">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 14a4.5 4.5 0 006.4 0l3-3a4.5 4.5 0 00-6.4-6.4l-1 1M14 10a4.5 4.5 0 00-6.4 0l-3 3a4.5 4.5 0 006.4 6.4l1-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 Copy link
               </button>
-              <button type="button" class="btn" id="btnEmailRoute">
+              <button type="button" class="btn" id="btnEmailRoute" aria-label="Send directions via email">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 7l8 6 8-6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-                Send via email
+                Email
+              </button>
+              <button type="button" class="btn" id="btnPrintRoute" aria-label="Print directions">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 9V3.5h10V9M7 17.5H5a2 2 0 01-2-2V11a2 2 0 012-2h14a2 2 0 012 2v4.5a2 2 0 01-2 2h-2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="14" width="10" height="6.5" rx="1" stroke="currentColor" stroke-width="2"/></svg>
+                Print
               </button>
             </div>
 
@@ -686,8 +710,7 @@
       </div>
 
       <footer class="panel__footer">
-        Directions and address search by <a href="https://stadiamaps.com/attribution/" target="_blank" rel="noopener">Stadia Maps</a>.
-        Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
+        Routing &copy; <a href="https://stadiamaps.com/attribution/" target="_blank" rel="noopener">Stadia Maps</a>
       </footer>
     </aside>
 
@@ -695,6 +718,9 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Filled in just before printing directions -->
+  <div id="printView" aria-hidden="true"></div>
 
   <script>
   (function () {
@@ -784,10 +810,7 @@
       pitch: 0,
       bearing: 0,
       hash: true,            // keeps the current view in the URL (#zoom/lat/lng)
-      attributionControl: {
-        compact: true,
-        customAttribution: '<a href="https://stadiamaps.com/attribution/" target="_blank" rel="noopener">Routing &copy; Stadia Maps</a>'
-      }
+      attributionControl: { compact: true }
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
@@ -830,9 +853,13 @@
     function addRouteLayers() {
       if (map.getSource("route")) return;
       map.addSource("route", { type: "geojson", data: emptyLine() });
-      // Put the route under the first label layer so street names stay readable.
-      const firstSymbol = (map.getStyle().layers || []).find((l) => l.type === "symbol");
-      const before = firstSymbol ? firstSymbol.id : undefined;
+      // Draw the route above every road, bridge and building layer, but below the
+      // labels that come after them, so street names stay readable.
+      const layers = map.getStyle().layers || [];
+      let lastNonLabel = -1;
+      layers.forEach((l, i) => { if (l.type !== "symbol") lastNonLabel = i; });
+      const next = layers[lastNonLabel + 1];
+      const before = next ? next.id : undefined;
       map.addLayer({
         id: "route-casing",
         type: "line",
@@ -920,24 +947,12 @@
       return window.location.origin + window.location.pathname;
     }
 
-    // Same format MapLibre uses for hash: true  →  #zoom/lat/lng[/bearing[/pitch]]
-    function mapHash() {
-      const c = map.getCenter();
-      const z = map.getZoom();
-      const precision = Math.max(0, Math.ceil((z * Math.LN2 + Math.log(512 / 360 / 0.5)) / Math.LN10));
-      const m = Math.pow(10, precision);
-      const lng = Math.round(c.lng * m) / m;
-      const lat = Math.round(c.lat * m) / m;
-      let hash = "#" + (Math.round(z * 100) / 100) + "/" + lat + "/" + lng;
-      const bearing = Math.round(map.getBearing() * 10) / 10;
-      const pitch = Math.round(map.getPitch());
-      if (bearing || pitch) hash += "/" + bearing;
-      if (pitch) hash += "/" + pitch;
-      return hash;
-    }
-
+    // Shared links never carry the sharer's current map view:
+    // - the office link has no view, so it always opens centred on the pin;
+    // - the directions link has no view, so it always opens zoomed to fit the whole route
+    //   (on the recipient's own screen size).
     function placeLink() {
-      return baseUrl() + mapHash();
+      return baseUrl();
     }
 
     function directionsLink() {
@@ -949,7 +964,7 @@
       }
       p.set("mode", MODES[state.mode].short);
       p.set("units", state.units);
-      return baseUrl() + "?" + p.toString() + mapHash();
+      return baseUrl() + "?" + p.toString();
     }
 
     async function copyText(text) {
@@ -1013,6 +1028,158 @@
         "Phone: " + CONFIG.office.phone + "\n"
       );
     });
+
+    // ------------------------------------------------------------------
+    // Print directions
+    // ------------------------------------------------------------------
+    const PIN_PATH = "M13.5 0C6.04 0 0 6.04 0 13.5c0 10.13 13.5 27.5 13.5 27.5S27 23.63 27 13.5C27 6.04 20.96 0 13.5 0z";
+    let printImage = null;   // snapshot of the map for the current route
+
+    $("btnPrintRoute").addEventListener("click", async () => {
+      if (!state.route) return;
+      const btn = $("btnPrintRoute");
+      btn.disabled = true;
+      try {
+        printImage = await snapshotRoute();
+      } catch (e) {
+        console.error("Map snapshot failed:", e);
+        printImage = null;
+      }
+      btn.disabled = false;
+      const img = buildPrintView(printImage);
+      if (img && img.decode) { try { await img.decode(); } catch (e) { /* print without it */ } }
+      document.body.classList.add("printing-directions");
+      window.print();
+    });
+
+    // Ctrl/Cmd+P while directions are showing prints the same layout.
+    window.addEventListener("beforeprint", () => {
+      if (state.view === "directions" && state.route && !document.body.classList.contains("printing-directions")) {
+        buildPrintView(printImage);
+        document.body.classList.add("printing-directions");
+      }
+    });
+    window.addEventListener("afterprint", () => document.body.classList.remove("printing-directions"));
+
+    // Fit the whole route in the map, wait for tiles, capture it with the pins drawn on,
+    // then put the map back where the user had it.
+    function snapshotRoute() {
+      return new Promise((resolve) => {
+        const prev = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+        const cam = map.cameraForBounds(routeBounds(), { padding: 50, maxZoom: 16.5 });
+        if (cam) map.jumpTo(Object.assign({ bearing: 0, pitch: 0 }, cam));
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          map.once("render", () => {
+            let url = null;
+            try { url = composeSnapshot(); } catch (e) { console.error("Map snapshot failed:", e); }
+            map.jumpTo(prev);
+            resolve(url);
+          });
+          map.triggerRepaint();
+        };
+        const timer = setTimeout(finish, 5000);
+        map.once("idle", finish);
+        map.triggerRepaint();
+      });
+    }
+
+    function composeSnapshot() {
+      const src = map.getCanvas();
+      const cssWidth = src.getBoundingClientRect().width || src.width;
+      const ratio = src.width / cssWidth;
+      const out = document.createElement("canvas");
+      out.width = src.width;
+      out.height = src.height;
+      const ctx = out.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(src, 0, 0);
+
+      if (state.origin) {
+        const p = map.project([state.origin.lng, state.origin.lat]);
+        ctx.beginPath();
+        ctx.arc(p.x * ratio, p.y * ratio, 7 * ratio, 0, 2 * Math.PI);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.lineWidth = 4 * ratio;
+        ctx.strokeStyle = "#1f1f1f";
+        ctx.stroke();
+      }
+
+      const o = map.project([CONFIG.office.lng, CONFIG.office.lat]);
+      ctx.save();
+      ctx.translate((o.x - 13.5) * ratio, (o.y - 41) * ratio);
+      ctx.scale(ratio, ratio);
+      ctx.fillStyle = "#7a1f2e";
+      ctx.fill(new Path2D(PIN_PATH));
+      ctx.beginPath();
+      ctx.arc(13.5, 13.5, 5.5, 0, 2 * Math.PI);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.restore();
+
+      return out.toDataURL("image/png");
+    }
+
+    function buildPrintView(imageUrl) {
+      const r = state.route;
+      const pv = $("printView");
+      pv.textContent = "";
+      if (!r) return null;
+
+      const add = (tag, text, cls) => {
+        const n = document.createElement(tag);
+        if (text != null) n.textContent = text;
+        if (cls) n.className = cls;
+        pv.appendChild(n);
+        return n;
+      };
+
+      add("h1", "Directions to " + CONFIG.office.name);
+      add("p", officeAddressOneLine + " · " + CONFIG.office.phone, "p-meta");
+      if (state.origin) add("p", "From: " + state.origin.label, "p-meta");
+
+      const sum = add("p", null, "p-summary");
+      const strong = document.createElement("strong");
+      strong.textContent = formatDuration(r.seconds);
+      sum.appendChild(strong);
+      sum.appendChild(document.createTextNode(" · " + formatDistance(r.km) + " · " + MODES[state.mode].label));
+
+      let img = null;
+      if (imageUrl) {
+        img = add("img", null, "p-map");
+        img.alt = "Map of the route";
+        img.src = imageUrl;
+      }
+
+      const ol = add("ol");
+      r.maneuvers.forEach((m) => {
+        const li = document.createElement("li");
+        li.textContent = m.instruction || "";
+        const isArrival = m.type === 4 || m.type === 5 || m.type === 6;
+        const extra = isArrival ? CONFIG.office.address1 : (m.length > 0 ? formatDistance(m.length) : "");
+        if (extra) {
+          li.appendChild(document.createElement("br"));
+          const s = document.createElement("small");
+          s.textContent = extra;
+          li.appendChild(s);
+        }
+        ol.appendChild(li);
+      });
+
+      add("p", "Travel times are estimates and don't account for live traffic. Routing © Stadia Maps · Map data © OpenStreetMap contributors © OpenMapTiles.\nOnline version: " + directionsLink(), "p-foot");
+      return img;
+    }
+
+    function routeBounds() {
+      const b = new maplibregl.LngLatBounds(state.route.bounds.getSouthWest(), state.route.bounds.getNorthEast());
+      b.extend([CONFIG.office.lng, CONFIG.office.lat]);
+      return b;
+    }
 
     let toastTimer = null;
     function showToast(msg) {
@@ -1361,6 +1528,7 @@
         });
         if (seq !== state.routeSeq) return;
         state.route = parseRoute(data);
+        printImage = null;
         if (!state.route) throw Object.assign(new Error("Empty route"), { status: 0 });
         setStatus("");
         drawRoute();

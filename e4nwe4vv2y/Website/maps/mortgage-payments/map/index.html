@@ -1,24 +1,485 @@
 <!DOCTYPE html>
-<html lang="en-CA">
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mortgage payments and loan sizes (map coming soon)</title>
-<!--
-  PLACEHOLDER. Replace everything in this folder (maps/mortgage-payments/map/) with your exported map.
-  The main file must be called index.html. See README.md.
--->
+<meta charset="utf-8" />
+<title>Ontario Mortgage Values Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+<!-- MapLibre GL JS (pinned version for stability) -->
+<link href="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.js"></script>
+
+<!-- PMTiles protocol handler, so MapLibre can read pmtiles:// vector sources directly from R2 -->
+<script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+
 <style>
-  html,body{height:100%;margin:0}
-  body{display:grid;place-items:center;background:#F2F4F7;color:#16202E;font:17px/1.5 "Segoe UI",Roboto,Helvetica,Arial,sans-serif;text-align:center;padding:24px;box-sizing:border-box}
-  h1{font-size:1.4rem;margin:0 0 8px}
-  p{margin:0;color:#4A5566;max-width:36ch}
+  :root{
+    --surface-1:#ffffff;
+    --surface-2:#f4f5f7;
+    --border:#dde1e7;
+    --text-primary:#161a20;
+    --text-secondary:#565f6d;
+    --text-muted:#848d99;
+    --accent:#184f95;
+    --accent-ink:#0d366b;
+    --no-data:#e2e4e8;
+    --shadow:0 6px 24px rgba(20,26,38,0.14), 0 1px 2px rgba(20,26,38,0.10);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  #mapWrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    background: #0b1026; /* matches the style's space color so there's no flash before load / around the globe */
+  }
+  #map {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    background: #0b1026;
+  }
+  .maplibregl-ctrl-attrib { font-size: 11px; }
+
+  /* ---------- Control panel ---------- */
+  #panel {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    width: 328px;
+    max-width: calc(100vw - 28px);
+    max-height: calc(100vh - 28px);
+    overflow-y: auto;
+    background: var(--surface-1);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px 16px 14px;
+    z-index: 5;
+  }
+  #panel h1 {
+    font-size: 15px;
+    line-height: 1.35;
+    margin: 0 0 2px;
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+  #panel .subtitle {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+  }
+
+  .seg {
+    display: flex;
+    background: var(--surface-2);
+    border-radius: 9px;
+    padding: 3px;
+    gap: 3px;
+    margin-bottom: 10px;
+  }
+  .seg button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 6px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .seg button.active {
+    background: var(--surface-1);
+    color: var(--accent-ink);
+    box-shadow: 0 1px 3px rgba(20,26,38,0.18);
+  }
+  .seg button:hover:not(.active) { color: var(--text-primary); }
+
+  .period-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 12px 0 4px;
+  }
+  #periodLabel {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  #periodSub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  #playBtn, .stepBtn {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--accent-ink);
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  #playBtn:hover, .stepBtn:hover { background: var(--surface-2); }
+
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(20,26,38,0.4);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(20,26,38,0.4);
+    cursor: pointer;
+  }
+
+  .rangeEnds {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 2px 8px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .toggle-row .lbl { font-size: 12.5px; color: var(--text-primary); font-weight: 600; }
+  .toggle-row .hint { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
+
+  .switch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex: 0 0 auto;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .track {
+    position: absolute; inset: 0;
+    background: var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .switch .track::before {
+    content: "";
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .switch input:checked + .track { background: var(--accent); }
+  .switch input:checked + .track::before { transform: translateX(18px); }
+
+  #legend {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  #legend .legend-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: 6px;
+  }
+  #legendGradient {
+    height: 10px;
+    border-radius: 5px;
+    margin-bottom: 4px;
+  }
+  #legendLabels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  #legend .nodata {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+  #legend .swatch {
+    width: 11px; height: 11px; border-radius: 3px; background: var(--no-data);
+    border: 1px solid var(--border);
+  }
+
+  #source-note {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Popups ---------- */
+  .mm-popup .maplibregl-popup-content {
+    padding: 12px 14px 13px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+  .mm-popup h3 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .mm-period {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .mm-value {
+    font-size: 21px;
+    font-weight: 700;
+    color: var(--accent-ink);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 3px;
+  }
+  .mm-note {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+  .mm-warn {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    margin: 2px 0 8px;
+  }
+
+  /* ---------- Detail panel (full-height right sidebar) ---------- */
+  #detailPanel {
+    display: none;
+    flex: 0 0 340px;
+    width: 340px;
+    height: 100%;
+    overflow-y: auto;
+    background: var(--surface-1);
+    border-left: 1px solid var(--border);
+    box-shadow: -6px 0 20px rgba(20,26,38,0.06);
+    padding: 20px 20px 24px;
+    z-index: 5;
+  }
+  #detailPanel.visible { display: block; }
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .detail-header h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  #detailClose {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #detailClose:hover { background: var(--border); color: var(--text-primary); }
+  .detail-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 2px 0 4px;
+  }
+  .detail-note {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin: 2px 0 10px;
+  }
+  .metric-block {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .metric-block:first-of-type {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+  .metric-block-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: 4px;
+  }
+  .metric-current {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .mc-value {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--accent-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .mc-alt {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-block { margin-top: 6px; }
+  .chart-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+  svg.spark { display: block; width: 100%; }
+
+  @media (max-width: 560px) {
+    #panel {
+      top: auto;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      width: auto;
+      max-width: none;
+      max-height: 58vh;
+    }
+  }
 </style>
 </head>
 <body>
-<div>
-  <h1>This map is being prepared</h1>
-  <p>Check back soon, or browse the other maps on Ontario Insights.</p>
-</div>
+  <div id="mapWrap">
+  <div id="map"></div>
+
+  <div id="panel">
+    <h1 id="panelTitle">Average value of new mortgage loans</h1>
+    <p class="subtitle" id="subtitleText">Ontario &amp; 15 census metropolitan areas, 2012–2025</p>
+
+    <div class="seg" id="metricSeg">
+      <button data-val="loanValue" class="active">Loan value</button>
+      <button data-val="monthlyPayment">Monthly payment</button>
+    </div>
+
+    <div class="seg" id="granularitySeg">
+      <button data-val="quarter" class="active">Quarterly</button>
+      <button data-val="year">Yearly</button>
+    </div>
+
+    <div class="period-row">
+      <div id="periodLabel">2012 Q3</div>
+      <div id="periodSub"></div>
+    </div>
+    <div class="slider-row">
+      <button id="playBtn" title="Play">▶</button>
+      <input type="range" id="periodSlider" min="0" max="53" step="1" value="0" aria-label="Time period" />
+    </div>
+    <div class="rangeEnds"><span id="rangeStart"></span><span id="rangeEnd"></span></div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="lbl" id="inflationLabel">Inflation-adjusted</div>
+        <div class="hint" id="inflationHint">Show values in chained 2017 dollars</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="realToggle" />
+        <span class="track"></span>
+      </label>
+    </div>
+
+    <div id="legend">
+      <div class="legend-title" id="legendTitle">Average value of new mortgage loans</div>
+      <div id="legendGradient"></div>
+      <div id="legendLabels"><span id="legendMin"></span><span id="legendMax"></span></div>
+      <div class="nodata"><span class="swatch"></span> <span id="nodataText">Outside these 15 CMAs – province-wide data only</span></div>
+    </div>
+
+    <div id="source-note">
+      Source: Equifax Canada, via Canada Mortgage and Housing Corporation (data as of March 2026). Values are quarterly averages; seasonal effects are not removed.
+      Inflation adjustment uses the Canada All-items Consumer Price Index (Bank of Canada / Statistics Canada Table 18-10-0004-01), rebased to a 2017 annual average of 100.
+    </div>
+  </div>
+  </div>
+
+  <div id="detailPanel">
+    <div class="detail-header">
+      <h2 id="detailTitle">–</h2>
+      <button id="detailClose" title="Close" aria-label="Close">×</button>
+    </div>
+    <div class="detail-sub" id="detailSub"></div>
+    <div class="detail-note" id="detailNote"></div>
+    <div id="detailBody"></div>
+  </div>
+
+<script src="app.js"></script>
 </body>
 </html>

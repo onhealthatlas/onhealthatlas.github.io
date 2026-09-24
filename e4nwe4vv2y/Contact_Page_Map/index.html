@@ -119,14 +119,14 @@
     <div class="map-info-card__header">
       <p class="map-info-card__title">Dr. Adil Shamji, MPP – Don Valley East Constituency Office</p>
       <div class="map-info-card__actions">
-        <a class="map-info-card__icon-btn" href="https://www.mapquest.com/ca/ontario/toronto/m3a-1c1/1200-lawrence-ave-e-43.74162,-79.31997" target="_blank" rel="noopener" title="Open map" aria-label="Open map">
+        <a class="map-info-card__icon-btn" href="../Directions_Map/" target="_blank" rel="noopener" title="Open map" aria-label="Open map (opens in a new tab)">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M14 3h7v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M19 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </a>
-        <a class="map-info-card__icon-btn map-info-card__icon-btn--directions" href="https://www.mapquest.com/directions/to/ca/ontario/toronto/m3a-1c1/1200-lawrence-ave-e" target="_blank" rel="noopener" title="Get directions" aria-label="Get directions">
+        <a class="map-info-card__icon-btn map-info-card__icon-btn--directions" href="../Directions_Map/?view=directions" target="_blank" rel="noopener" title="Get directions" aria-label="Get directions (opens in a new tab)">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 3l8 8-8 8-1.4-1.4L16.2 12H4v-2h12.2l-5.6-5.6L12 3z" fill="currentColor"/>
           </svg>
@@ -148,7 +148,7 @@
 
     const map = new maplibregl.Map({
       container: "map",
-      style: "style.json",   // relative path — served alongside this file on GitHub Pages
+      style: "style.json",   // relative path — served from this same folder
       center: [OFFICE_LNG, OFFICE_LAT],
       zoom: 15.5,
       pitch: 0,

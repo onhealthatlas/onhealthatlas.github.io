@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Basemap – Colour</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- Every dependency is served from the Cloudflare R2 bucket at cdn.onhealthatlas.ca.
+       Only index.html and style.json live on GitHub Pages.
+       crossorigin="anonymous" on each tag lets every request (including MapLibre's own
+       fetches for tiles, glyphs and sprites) share the one pre-opened connection. -->
+  <link rel="preconnect" href="https://cdn.onhealthatlas.ca" crossorigin="anonymous" />
+
+  <!-- MapLibre GL JS (pinned version for stability) -->
+  <link rel="stylesheet" href="https://cdn.onhealthatlas.ca/lib/maplibre-gl-5.15.0/maplibre-gl.css" crossorigin="anonymous" />
+  <script defer src="https://cdn.onhealthatlas.ca/lib/maplibre-gl-5.15.0/maplibre-gl.js" crossorigin="anonymous"></script>
+
+  <!-- PMTiles protocol handler, so MapLibre can read pmtiles:// sources directly from R2 -->
+  <script defer src="https://cdn.onhealthatlas.ca/lib/pmtiles-3.2.0/pmtiles.js" crossorigin="anonymous"></script>
+
+  <!-- Highway shield generator (ES module), fetched early so it downloads in parallel -->
+  <link rel="modulepreload" href="https://cdn.onhealthatlas.ca/lib/maplibre-shield-generator-0.1.1/index.js" crossorigin="anonymous" />
+
+  <!-- Font used to draw the numbers on highway shields (canvas text, not map glyphs).
+       noto-sans.css declares a single "Noto Sans" face at weight 500 / 75% width, which is
+       exactly the "condensed 500" font the shield renderer asks for. -->
+  <link rel="stylesheet" href="https://cdn.onhealthatlas.ca/fonts/noto-sans/noto-sans.css" crossorigin="anonymous" />
+
+  <style>
+    html, body, #map {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: #0b1026; /* matches the style's space color so there's no flash before load */
+    }
+    .maplibregl-ctrl-attrib {
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script type="module">
+    import { ShieldRenderer } from "https://cdn.onhealthatlas.ca/lib/maplibre-shield-generator-0.1.1/index.js";
+
+    // ---- Shield configuration ------------------------------------------------
+    // Shield definitions + artwork, hosted on R2 (copied from OpenStreetMap
+    // Americana, which is CC0). See sprites/shields/ in the bucket.
+    const CDN = "https://cdn.onhealthatlas.ca";
+    const SHIELD_DEFS_URL = `${CDN}/sprites/shields/shields.json`;
+    const SHIELD_SPRITE_URL = `${CDN}/sprites/shields/sprite`; // MapLibre loads sprite.json/.png and @2x from this
+    const SHIELD_SPRITE_ID = "shields";   // images in this sprite are addressed as "shields:<name>"
+    const SHIELD_FONT = '"Noto Sans", "Arial Narrow", sans-serif-condensed, sans-serif';
+
+    // Image IDs requested by the "highway-shield" layer in style.json look like:
+    //   "shield\n<network>\n<ref>\n<name>"   e.g. "shield\nCA:ON:primary\n401\n"
+    const routeParser = {
+      parse: (id) => {
+        const [, network = "", ref = "", name = ""] = id.split("\n");
+        return { network, ref, name };
+      },
+      format: (network, ref, name) => `shield\n${network}\n${ref}\n${name}`,
+    };
+    const isShieldImage = (id) => id.startsWith("shield\n");
+    // Skip hiking/cycling/etc. networks (lwn, rcn, ncn, iwn, …) if any ever appear.
+    const isRoadNetwork = (network) => !/^[lrni][chimpw]n$/.test(network);
+
+    // Americana's shields.json names sprite images without a prefix ("shield_ca_on_primary").
+    // Because the shield sprite is loaded as a second sprite, MapLibre knows those images as
+    // "shields:shield_ca_on_primary", so rewrite every spriteBlank reference to match.
+    function prefixSpriteBlanks(node) {
+      if (Array.isArray(node)) return node.forEach(prefixSpriteBlanks);
+      if (!node || typeof node !== "object") return;
+      for (const [key, value] of Object.entries(node)) {
+        if (key === "spriteBlank") {
+          node[key] = Array.isArray(value)
+            ? value.map((v) => `${SHIELD_SPRITE_ID}:${v}`)
+            : `${SHIELD_SPRITE_ID}:${value}`;
+        } else {
+          prefixSpriteBlanks(value);
+        }
+      }
+    }
+
+    async function loadShieldDefs() {
+      const res = await fetch(SHIELD_DEFS_URL);
+      if (!res.ok) throw new Error(`${SHIELD_DEFS_URL}: HTTP ${res.status}`);
+      const defs = await res.json();
+      prefixSpriteBlanks(defs.networks);
+      defs.options = { ...defs.options, shieldFont: SHIELD_FONT };
+      return defs;
+    }
+
+    // ---- Map -----------------------------------------------------------------
+    // Register the pmtiles:// protocol so MapLibre can fetch tiles directly
+    // out of the single .pmtiles archive on Cloudflare R2 via HTTP range requests.
+    const protocol = new pmtiles.Protocol();
+    // If a request fails (for example a brief network hiccup while the map first loads), pmtiles keeps
+    // the failed file header cached and the whole basemap stays blank until the page is reloaded.
+    // So on any failure, forget that file and try again a few times before giving up.
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    maplibregl.addProtocol("pmtiles", async (params, abortController) => {
+      for (let attempt = 1; ; attempt++) {
+        try {
+          return await protocol.tilev4(params, abortController);
+        } catch (err) {
+          if (abortController.signal.aborted || attempt >= 4) throw err;
+          const file = params.url.replace(/^pmtiles:\/\//, "").replace(/\/\d+\/\d+\/\d+$/, "");
+          protocol.tiles.delete(file);
+          await wait(500 * attempt);
+        }
+      }
+    });
+
+    // Load the style, the shield definitions and the shield font together. The definitions
+    // must be in hand before the map requests its first tiles; otherwise early shields render
+    // blank. Waiting for the font means the first shields are drawn in Noto Sans rather than
+    // a fallback font (canvas text never triggers a webfont download on its own).
+    const [style, shieldDefs] = await Promise.all([
+      fetch("style.json").then((r) => r.json()),  // served alongside this file on GitHub Pages
+      loadShieldDefs().catch((err) => {
+        console.error("Highway shields disabled:", err);
+        return null;
+      }),
+      document.fonts.load('condensed 500 16px "Noto Sans"').catch(() => {}),
+    ]);
+
+    // Add the shield artwork as a second sprite. style.json keeps its single sprite URL,
+    // so it still opens cleanly in Maputnik.
+    if (shieldDefs) {
+      const base = Array.isArray(style.sprite) ? style.sprite : [{ id: "default", url: style.sprite }];
+      style.sprite = [...base, { id: SHIELD_SPRITE_ID, url: SHIELD_SPRITE_URL }];
+    }
+
+    // Layers whose data is built into style.json (state/division labels missing from the tiles,
+    // the zoom-4 Korea border, US/Canada/Australia state lines below zoom 6, all country and
+    // territory names, and the Black Sea / Red Sea labels). Built-in data is ready instantly, so these would otherwise
+    // appear before anything else while the map tiles are still downloading. Start them hidden
+    // here (style.json itself keeps them visible, so they still show in Maputnik) and reveal
+    // them below once the first map tiles have loaded.
+    const BUILT_IN_LAYERS = [
+      "boundary_3_us_ca_au", "boundary_2_z4_korea", "water_name_custom", "water_name_custom_from_z2_75",
+      "water_name_custom_from_z3_25", "water_name_custom_from_z3_5", "water_name_custom_from_z4_5",
+      "water_name_custom_z4_5", "label_town_custom", "label_state_other", "label_island_italic",
+      "label_city_custom", "label_state_other_ni", "label_state", "label_state_de", "label_state_from_z5",
+      "label_state_ct", "label_state_ri", "label_state_nj", "label_state_abbr_band0", "label_state_abbr_w_pe",
+      "label_state_abbr_band1", "label_state_abbr_w_de", "label_state_abbr_band2", "label_state_abbr_w_ri",
+      "label_state_abbr_band3", "label_state_abbr_w_ct_moved", "label_state_abbr_w_ct",
+      "label_state_abbr_band4", "label_state_abbr_w_co_moved", "label_state_abbr_w_co",
+      "label_state_abbr_band5", "label_state_abbr_w_ma", "label_state_abbr_band6", "label_state_abbr_w_nj",
+      "label_state_abbr_band7", "label_state_pe", "label_country_band0", "label_country_from_z3_23",
+      "label_country_band1", "label_country_from_z2", "label_country_band2", "label_country_from_z2_5",
+      "label_country_band3", "label_country_dr_short", "label_country_dr", "label_country_band4",
+      "label_country_from_z3_1", "label_country_band5", "label_country_from_z1_61", "label_country_band6",
+      "label_country_drc_short", "label_country_drc", "label_country_band7"
+    ];
+    for (const layer of style.layers) {
+      if (BUILT_IN_LAYERS.includes(layer.id)) layer.layout = { ...layer.layout, visibility: "none" };
+    }
+
+    const map = new maplibregl.Map({
+      container: "map",
+      style,
+      center: [0, 15],
+      zoom: 2,               // the globe's lowest allowed zoom (see enforceMinZoom below)
+      minZoom: 2,
+      pitch: 0,
+      bearing: 0,
+      hash: true,            // reflect view state in the URL (shareable links)
+      attributionControl: { compact: true }
+    });
+
+    // Reveal the built-in layers as soon as the first map tile arrives, which is when the
+    // labels from the tiles start appearing too.
+    let builtInLayersShown = false;
+    function showBuiltInLayers() {
+      if (builtInLayersShown) return;
+      builtInLayersShown = true;
+      for (const id of BUILT_IN_LAYERS) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
+      }
+    }
+    map.on("sourcedata", (e) => {
+      if (e.sourceId === "openmaptiles" && e.tile) showBuiltInLayers(); // first map tile has arrived
+    });
+    map.once("idle", showBuiltInLayers); // fallback, e.g. if the tiles fail to load
+
+    // Hook up the shield generator right away, before any tiles are laid out.
+    if (shieldDefs) {
+      new ShieldRenderer(shieldDefs, routeParser)
+        .filterImageID(isShieldImage)
+        .filterNetwork(isRoadNetwork)
+        .renderOnMaplibreGL(map);
+    }
+
+    // Belt-and-suspenders: force globe projection even if style.json's
+    // top-level "projection" is ever overwritten by a future edit.
+    map.on("style.load", () => {
+      map.setProjection({ type: "globe" });
+      projectionName = "globe";
+      enforceMinZoom();
+    });
+
+    // Lowest zoom allowed: 2 on both the flat map and the globe (as shown in the URL and zoom readout).
+    // On the globe MapLibre lets the reported zoom drop below its minimum away from the equator
+    // (by log2 of the cosine of the latitude), so the globe minimum is raised to compensate.
+    const MIN_ZOOM = { flat: 2, globe: 2 };
+    let projectionName = "globe";
+    function enforceMinZoom() {
+      let min = MIN_ZOOM.flat;
+      if (projectionName === "globe") {
+        const lat = Math.min(Math.abs(map.getCenter().lat), 85);
+        min = MIN_ZOOM.globe - Math.log2(Math.cos(lat * Math.PI / 180));
+      }
+      if (Math.abs(map.getMinZoom() - min) > 1e-6) map.setMinZoom(min);
+      if (map.getZoom() < (projectionName === "globe" ? MIN_ZOOM.globe : MIN_ZOOM.flat) - 1e-6 && !map.isMoving()) {
+        map.jumpTo({ zoom: projectionName === "globe" ? MIN_ZOOM.globe : MIN_ZOOM.flat });
+      }
+    }
+    map.on("projectiontransition", (e) => {
+      projectionName = e.newProjection === "globe" ? "globe" : "flat";
+      enforceMinZoom();
+      requestAnimationFrame(enforceMinZoom);   // once the new projection has taken effect
+    });
+    map.on("move", enforceMinZoom);
+    map.on("moveend", enforceMinZoom);
+
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(new maplibregl.FullscreenControl(), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
+
+    // Adds a small button to toggle between the 3D globe and a flat mercator map.
+    // (Included in MapLibre GL JS since v4.1 — safe to skip if an older build is ever swapped in.)
+    if (typeof maplibregl.GlobeControl === "function") {
+      map.addControl(new maplibregl.GlobeControl(), "top-right");
+    }
+
+    map.on("error", (e) => {
+      console.error("Map error:", e && e.error ? e.error : e);
+    });
+  </script>
+</body>
+</html>

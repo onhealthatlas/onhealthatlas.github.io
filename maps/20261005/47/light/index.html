@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Basemap – Light</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- Every dependency is served from the Cloudflare R2 bucket at cdn.onhealthatlas.ca.
+       Only index.html and style.json live on GitHub Pages.
+       crossorigin="anonymous" on each tag lets every request (including MapLibre's own
+       fetches for tiles, glyphs and sprites) share the one pre-opened connection. -->
+  <link rel="preconnect" href="https://cdn.onhealthatlas.ca" crossorigin="anonymous" />
+
+  <!-- MapLibre GL JS (pinned version for stability) -->
+  <link rel="stylesheet" href="https://cdn.onhealthatlas.ca/lib/maplibre-gl-5.15.0/maplibre-gl.css" crossorigin="anonymous" />
+  <script defer src="https://cdn.onhealthatlas.ca/lib/maplibre-gl-5.15.0/maplibre-gl.js" crossorigin="anonymous"></script>
+
+  <!-- PMTiles protocol handler, so MapLibre can read pmtiles:// sources directly from R2 -->
+  <script defer src="https://cdn.onhealthatlas.ca/lib/pmtiles-3.2.0/pmtiles.js" crossorigin="anonymous"></script>
+
+  <!-- Highway shield generator (ES module), fetched early so it downloads in parallel -->
+  <link rel="modulepreload" href="https://cdn.onhealthatlas.ca/lib/maplibre-shield-generator-0.1.1/index.js" crossorigin="anonymous" />
+
+  <!-- Font used to draw the numbers on highway shields (canvas text, not map glyphs).
+       noto-sans.css declares a single "Noto Sans" face at weight 500 / 75% width, which is
+       exactly the "condensed 500" font the shield renderer asks for. -->
+  <link rel="stylesheet" href="https://cdn.onhealthatlas.ca/fonts/noto-sans/noto-sans.css" crossorigin="anonymous" />
+
+  <style>
+    html, body, #map {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: #0b1026; /* matches the style's space color so there's no flash before load */
+    }
+    .maplibregl-ctrl-attrib {
+      font-size: 11px;
+    }
+    .maplibregl-ctrl-group button.language-toggle {   /* the EN/FR button */
+      font: 700 12px/29px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #333;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script type="module">
+    import { ShieldRenderer } from "https://cdn.onhealthatlas.ca/lib/maplibre-shield-generator-0.1.1/index.js";
+
+    // ---- Address (URL) -------------------------------------------------------
+    // The map's state is kept in its address, so it can be linked to or embedded directly:
+    //   …/maps/colour/?proj=3d&lang=fr#4.85/53.85/-3.93
+    //   proj  3d = globe (the default), 2d = flat map
+    //   lang  en = English (the default), fr = French
+    //   after the #: zoom/latitude/longitude, kept up to date by MapLibre as the map moves
+    // Missing or unknown values fall back to the defaults. The map rewrites the address whenever the
+    // projection or the language changes (without reloading), always with proj first, then lang.
+    // An address without the slash after the folder name (…/maps/colour?…) gets it added here first,
+    // so that the files next to this page (style.json) are always found.
+    if (!location.pathname.endsWith("/") && !/\.[a-z0-9]+$/i.test(location.pathname)) {
+      history.replaceState(history.state, "", `${location.pathname}/${location.search}${location.hash}`);
+    }
+    const startParams = new URLSearchParams(location.search);
+    let lang = startParams.get("lang")?.toLowerCase() === "fr" ? "fr" : "en";
+    let proj = startParams.get("proj")?.toLowerCase() === "2d" ? "2d" : "3d";
+    function writeAddress() {
+      const next = new URLSearchParams({ proj, lang });
+      for (const [key, value] of new URLSearchParams(location.search)) {
+        if (key !== "proj" && key !== "lang") next.append(key, value);   // keep any other parameters
+      }
+      const url = `${location.pathname}?${next}${location.hash}`;
+      if (url !== location.pathname + location.search + location.hash) history.replaceState(history.state, "", url);
+    }
+    writeAddress();
+
+    // ---- Shield configuration ------------------------------------------------
+    // Shield definitions + artwork, hosted on R2 (copied from OpenStreetMap
+    // Americana, which is CC0). See sprites/shields/ in the bucket.
+    // This light basemap uses the greyscale copy of the shield artwork (sprite-grey*),
+    // and greys out the colours in shields.json as it loads (see greyscaleColors below).
+    // shields.json itself is shared with the colour basemap.
+    const CDN = "https://cdn.onhealthatlas.ca";
+    const SHIELD_DEFS_URL = `${CDN}/sprites/shields/shields.json`;
+    // MapLibre adds the file endings itself: sprite-grey.json + sprite-grey.png on standard
+    // screens, sprite-grey@2x.json + sprite-grey@2x.png on high-resolution screens.
+    const SHIELD_SPRITE_URL = `${CDN}/sprites/shields/sprite-grey`;
+    const SHIELD_SPRITE_ID = "shields";   // images in this sprite are addressed as "shields:<name>"
+    const SHIELD_FONT = '"Noto Sans", "Arial Narrow", sans-serif-condensed, sans-serif';
+
+    // Image IDs requested by the "highway-shield" layer in style.json look like:
+    //   "shield\n<network>\n<ref>\n<name>"   e.g. "shield\nCA:ON:primary\n401\n"
+    const routeParser = {
+      parse: (id) => {
+        const [, network = "", ref = "", name = ""] = id.split("\n");
+        return { network, ref, name };
+      },
+      format: (network, ref, name) => `shield\n${network}\n${ref}\n${name}`,
+    };
+    const isShieldImage = (id) => id.startsWith("shield\n");
+    // Skip hiking/cycling/etc. networks (lwn, rcn, ncn, iwn, …) if any ever appear.
+    const isRoadNetwork = (network) => !/^[lrni][chimpw]n$/.test(network);
+
+    // Americana's shields.json names sprite images without a prefix ("shield_ca_on_primary").
+    // Because the shield sprite is loaded as a second sprite, MapLibre knows those images as
+    // "shields:shield_ca_on_primary", so rewrite every spriteBlank reference to match.
+    function prefixSpriteBlanks(node) {
+      if (Array.isArray(node)) return node.forEach(prefixSpriteBlanks);
+      if (!node || typeof node !== "object") return;
+      for (const [key, value] of Object.entries(node)) {
+        if (key === "spriteBlank") {
+          node[key] = Array.isArray(value)
+            ? value.map((v) => `${SHIELD_SPRITE_ID}:${v}`)
+            : `${SHIELD_SPRITE_ID}:${value}`;
+        } else {
+          prefixSpriteBlanks(value);
+        }
+      }
+    }
+
+    // shields.json also sets colours that are not part of the sprite artwork: the fill and
+    // outline of shields drawn as plain shapes, the tint applied to some sprite blanks
+    // (colorLighten / colorDarken), and the colour of route numbers and banner text.
+    // Every one of those settings has "color" in its name, so convert each to grey.
+    // Uses the same Rec. 709 weights the greyscale sprite was made with, so drawn shields
+    // match the sprite artwork exactly (e.g. Interstate blue #003f87 -> grey 55).
+    const colorParser = document.createElement("canvas").getContext("2d");
+    function toGrey(css) {
+      if (typeof css !== "string" || !CSS.supports("color", css)) return css;
+      colorParser.fillStyle = css;               // normalises "white", "hsl(...)", "#abc", etc.
+      const v = colorParser.fillStyle;           // -> "#rrggbb" or "rgba(r, g, b, a)"
+      let r, g, b, a = 1;
+      if (v[0] === "#") {
+        [r, g, b] = [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
+      } else {
+        [r, g, b, a = 1] = v.match(/[\d.]+/g).map(Number);
+      }
+      const y = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+      return a < 1 ? `rgba(${y}, ${y}, ${y}, ${a})` : "#" + y.toString(16).padStart(2, "0").repeat(3);
+    }
+    function greyscaleColors(node) {
+      if (Array.isArray(node)) return node.forEach(greyscaleColors);
+      if (!node || typeof node !== "object") return;
+      for (const [key, value] of Object.entries(node)) {
+        if (/color/i.test(key) && typeof value === "string") node[key] = toGrey(value);
+        else greyscaleColors(value);
+      }
+    }
+
+    async function loadShieldDefs() {
+      const res = await fetch(SHIELD_DEFS_URL);
+      if (!res.ok) throw new Error(`${SHIELD_DEFS_URL}: HTTP ${res.status}`);
+      const defs = await res.json();
+      prefixSpriteBlanks(defs.networks);
+      greyscaleColors(defs);
+      defs.options = { ...defs.options, shieldFont: SHIELD_FONT };
+      return defs;
+    }
+
+    // ---- Map -----------------------------------------------------------------
+    // Register the pmtiles:// protocol so MapLibre can fetch tiles directly
+    // out of the single .pmtiles archive on Cloudflare R2 via HTTP range requests.
+    const protocol = new pmtiles.Protocol();
+    // If a request fails (for example a brief network hiccup while the map first loads), pmtiles keeps
+    // the failed file header cached and the whole basemap stays blank until the page is reloaded.
+    // So on any failure, forget that file and try again a few times before giving up.
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // Zooms 0-3 of the map tiles come from a small copy of them (LOW_ZOOM_TILES) that leaves out what
+    // nothing draws below zoom 4: the city and country points and the ~100 translated names of each sea.
+    // Its zoom 0 and 1 tiles also carry the more detailed coastlines, land cover (incl. ice) and borders
+    // of zoom 2. The opening view needs about 0.2 MB from it instead of about 7 MB from the full file.
+    // Zoom 4 and up come from the full file as before. style.json still names only the full file, so
+    // it opens unchanged in Maputnik (where all zooms come from the full file).
+    const FULL_TILES = `${CDN}/tiles/world_20260823_omt.pmtiles`;
+    const LOW_ZOOM_TILES = `${CDN}/tiles/world_20260823_omt_z0-3.pmtiles`;
+    const LOW_ZOOM_MAX = 3;
+    function routeTile(url) {
+      const m = url.match(/^pmtiles:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)$/);
+      if (!m || m[1] !== FULL_TILES || +m[2] > LOW_ZOOM_MAX) return url;
+      return `pmtiles://${LOW_ZOOM_TILES}/${m[2]}/${m[3]}/${m[4]}`;
+    }
+    maplibregl.addProtocol("pmtiles", async (params, abortController) => {
+      params = { ...params, url: routeTile(params.url) };
+      for (let attempt = 1; ; attempt++) {
+        try {
+          return await protocol.tilev4(params, abortController);
+        } catch (err) {
+          if (abortController.signal.aborted || attempt >= 4) throw err;
+          const file = params.url.replace(/^pmtiles:\/\//, "").replace(/\/\d+\/\d+\/\d+$/, "");
+          protocol.tiles.delete(file);
+          await wait(500 * attempt);
+        }
+      }
+    });
+
+    // Load the style, the shield definitions and the shield font together. The definitions
+    // must be in hand before the map requests its first tiles; otherwise early shields render
+    // blank. Waiting for the font means the first shields are drawn in Noto Sans rather than
+    // a fallback font (canvas text never triggers a webfont download on its own).
+    const [style, shieldDefs] = await Promise.all([
+      fetch("style.json").then((r) => r.json()),  // served alongside this file on GitHub Pages
+      loadShieldDefs().catch((err) => {
+        console.error("Highway shields disabled:", err);
+        return null;
+      }),
+      document.fonts.load('condensed 500 16px "Noto Sans"').catch(() => {}),
+    ]);
+
+    // Add the (greyscale) shield artwork as a second sprite. style.json keeps its single sprite URL,
+    // so it still opens cleanly in Maputnik.
+    if (shieldDefs) {
+      const base = Array.isArray(style.sprite) ? style.sprite : [{ id: "default", url: style.sprite }];
+      style.sprite = [...base, { id: SHIELD_SPRITE_ID, url: SHIELD_SPRITE_URL }];
+    }
+
+    // ---- Language ------------------------------------------------------------
+    // English or French labels. Built-in labels (countries, states/provinces, seas, islands) carry their French
+    // name in style.json (name_fr). Labels from the map tiles use the tiles' own French name (name:fr):
+    //  - seas, lakes, bays and rivers: wherever the tiles have one (always starting with a capital letter);
+    //  - cities: only those listed in FRENCH_CITY_NAMES (well-known French names such as Londres, Moscou,
+    //    Pékin), because the tiles' French names for smaller places are often odd ("xian de …", "Ville de …").
+    //    A place keeps its usual name if its own French name is missing, so London (Ontario) stays London.
+    // French names with brackets or commas (e.g. "Field (Ontario)") are never used. Road, transit and
+    // point-of-interest names are never translated. Each label's English setting stays in style.json;
+    // the French one is worked out from it here.
+    const PAGE_TITLE = { en: document.title, fr: "Fond de carte – Clair" };
+    const UI_STRINGS = {
+      en: {
+        "NavigationControl.ZoomIn": "Zoom in", "NavigationControl.ZoomOut": "Zoom out",
+        "GlobeControl.Enable": "Enable globe", "GlobeControl.Disable": "Disable globe",
+        "AttributionControl.ToggleAttribution": "Toggle attribution", "Map.Title": "Map",
+      },
+      fr: {
+        "NavigationControl.ZoomIn": "Zoom avant", "NavigationControl.ZoomOut": "Zoom arrière",
+        "GlobeControl.Enable": "Activer le globe", "GlobeControl.Disable": "Désactiver le globe",
+        "AttributionControl.ToggleAttribution": "Afficher ou masquer l'attribution", "Map.Title": "Carte",
+      },
+    };
+    const LANGUAGE_BUTTON = {   // the button names the language it switches to
+      en: { text: "FR", label: "Afficher la carte en français" },
+      fr: { text: "EN", label: "Show the map in English" },
+    };
+    const FRENCH_TILE_LAYERS = new Set(["place", "water_name", "waterway"]);
+    const FRENCH_LITERALS = { "D.R.": "R.D.", "D.R.C.": "R.D.C." };   // short forms at low zooms
+    const BUILT_IN_NAME_KEYS = new Set(["name", "s2", "s3"]);
+    function frenchBuiltIn(node) {             // ["get", "name"] -> French name if there is one, else English
+      if (typeof node === "string") return FRENCH_LITERALS[node] ?? node;
+      if (!Array.isArray(node)) return node;
+      if (node.length === 2 && node[0] === "get" && BUILT_IN_NAME_KEYS.has(node[1])) {
+        return ["coalesce", ["get", `${node[1]}_fr`], node];
+      }
+      return node.map(frenchBuiltIn);
+    }
+    // Cities shown with their French name (as the tiles spell them in English).
+    const FRENCH_CITY_NAMES = [
+      "Aachen", "Addis Ababa", "Adelaide", "Aleppo", "Alexandria", "Algiers", "Antwerp", "Ashgabat", "Aswan",
+      "Athens", "Augsburg", "Baghdad", "Baku", "Barcelona", "Basel", "Baton Rouge", "Beijing", "Beirut",
+      "Bengaluru", "Bern", "Bishkek", "Bologna", "Bremen", "Brasília", "Brussels", "Bucharest", "Bukhara", "Cádiz",
+      "Cairo", "Canterbury", "Cap-Haitien", "Cape Town", "Catania", "Chelyabinsk", "Chișinău", "Copenhagen",
+      "Córdoba", "Damascus", "Detroit", "Dhaka", "Dover", "Dresden", "Dushanbe", "Edinburgh", "Fez", "Frankfurt",
+      "Freiburg im Breisgau", "Geneva", "Genoa", "Ghent", "Gothenburg", "Granada", "Guangzhou", "Hamburg", "Hanoi",
+      "Hanover", "Havana", "Herat", "Ho Chi Minh City", "Irkutsk", "Isfahan", "Jeddah", "Jerusalem", "Johannesburg",
+      "Juba", "Kabul", "Kathmandu", "Kobe", "Koblenz", "Kolkata", "Krakow", "Krasnoyarsk", "Kuwait City", "Leuven",
+      "Lhasa", "Lisbon", "London", "Luxor", "Macau", "Mainz", "Manila", "Mantua", "Marrakesh", "Mecca", "Medina",
+      "Mexico City", "Mogadishu", "Montreal", "Moscow", "Mosul", "Murmansk", "Muscat", "N'Djamena", "Nanjing",
+      "New Orleans", "Nicosia", "Nizhny Novgorod", "Novosibirsk", "Odesa", "Omdurman", "Padua", "Palermo",
+      "Panama City", "Petropavlovsk-Kamchatsky", "Philadelphia", "Piraeus", "Port Louis", "Port Said", "Port Vila",
+      "Port of Spain", "Quebec", "Regensburg", "Riyadh", "Rostov-on-Don", "Saint Louis", "Saint Petersburg",
+      "Salzburg", "Samarkand", "San Jose", "Sana'a", "Santo Domingo", "Seoul", "Sevastopol", "Seville", "Shanghai",
+      "Shiraz", "Singapore", "Sochi", "Tangier", "Tarragona", "Tashkent", "Tbilisi", "Tehran", "The Hague",
+      "Thessaloniki", "Thimphu", "Timbuktu", "Trier", "Ulaanbaatar", "Ufa", "Valletta", "Varanasi", "Venice",
+      "Verona", "Vienna", "Voronezh", "Warsaw", "Yakutsk", "Yangon", "Yekaterinburg", "Yerevan", "Zaragoza"
+    ];
+    function frenchFromTiles(layer, english) {
+      const fr = ["get", "name:fr"];
+      const usable = ["all", ["has", "name:fr"], ["!", ["in", "(", fr]], ["!", ["in", ",", fr]]];
+      if (layer["source-layer"] === "place") {
+        return ["case", ["all", usable, ["in", ["coalesce", ["get", "name_en"], ""], ["literal", FRENCH_CITY_NAMES]]], fr, english];
+      }
+      const capitalised = ["concat", ["upcase", ["slice", fr, 0, 1]], ["slice", fr, 1]];   // water names
+      return ["case", usable, capitalised, english];
+    }
+    const labelText = {};                      // layer id -> { en, fr } text settings
+    for (const layer of style.layers) {
+      const english = layer.layout?.["text-field"];
+      if (layer.type !== "symbol" || english == null) continue;
+      let french = null;
+      if (layer.source === "openmaptiles") {
+        if (FRENCH_TILE_LAYERS.has(layer["source-layer"])) french = frenchFromTiles(layer, english);
+      } else if (style.sources[layer.source]?.type === "geojson") {
+        french = frenchBuiltIn(english);
+      }
+      if (french && JSON.stringify(french) !== JSON.stringify(english)) {
+        labelText[layer.id] = { en: english, fr: french };
+        if (lang === "fr") layer.layout = { ...layer.layout, "text-field": french };
+      }
+    }
+
+    // ---- Projection ----------------------------------------------------------
+    style.projection = { type: proj === "2d" ? "mercator" : "globe" };
+
+    // ---- Opening view --------------------------------------------------------
+    // The map opens as a plain globe in the water colour (WATER). Once the map tiles for the
+    // opening view have all arrived, the rest comes in step by step, each step fading in over 0.3 s:
+    //   1. the land colour and the other land features (parks, rivers, roads, ...)
+    //   2. ice shelves and ice sheets
+    //   3. country borders (and state/province borders)
+    //   4. country names, all water names and the other labels
+    //   5. state/province names and abbreviations
+    // Water areas are drawn from the start, in the same colour as the globe, so the oceans never change.
+    // Everything is hidden here by setting its opacity to 0 (style.json itself is unchanged, so it still
+    // shows everything in Maputnik), and each step puts the style's own opacity back.
+    const WATER = "#c2c8ca";
+    const STEP_GAP_MS = 300;                 // time between the steps
+    const OPACITY_PROPERTIES = {
+      fill: ["fill-opacity"], line: ["line-opacity"], "fill-extrusion": ["fill-extrusion-opacity"],
+      raster: ["raster-opacity"], circle: ["circle-opacity", "circle-stroke-opacity"],
+      symbol: ["text-opacity", "icon-opacity"],
+    };
+    function revealStep(layer) {
+      if (layer.type === "fill" && layer["source-layer"] === "water") return 0;          // shown from the start
+      if (layer.type === "fill" && layer["source-layer"] === "landcover" && /ice|glacier/.test(layer.id)) return 2;
+      if (layer.type === "line" && (layer["source-layer"] === "boundary" || layer.id.startsWith("boundary_"))) return 3;
+      if (layer.type === "symbol") return layer.id.startsWith("label_state") ? 5 : 4;
+      return 1;
+    }
+    const revealSteps = [[], [], [], [], [], []];   // step -> [layer id, paint property, the style's own value]
+    for (const layer of style.layers) {
+      const step = revealStep(layer);
+      if (step === 0) continue;
+      const props = layer.type === "background" ? ["background-color"] : OPACITY_PROPERTIES[layer.type] || [];
+      for (const prop of props) {
+        revealSteps[step].push([layer.id, prop, layer.paint?.[prop]]);
+        layer.paint = { ...layer.paint, [prop]: layer.type === "background" ? WATER : 0 };
+      }
+    }
+
+    const map = new maplibregl.Map({
+      canvasContextAttributes: { antialias: true },   // smooth edges (e.g. the globe against space)
+      container: "map",
+      style,
+      center: [0, 15],
+      zoom: 2,               // the lowest allowed zoom at the equator (see enforceMinZoom below)
+      minZoom: -2,           // the real minimum is set by enforceMinZoom (lower near the poles on the globe)
+      pitch: 0,
+      bearing: 0,
+      maxPitch: 0,           // never tilted (see the controls below)
+      pitchWithRotate: false,
+      hash: true,            // zoom/latitude/longitude after the # (see Address above)
+      attributionControl: { compact: true },
+      locale: UI_STRINGS[lang],
+    });
+
+    // Start the steps once every map tile in the opening view has arrived.
+    const reliefSources = [...new Set(style.layers.filter((l) => l.type === "raster").map((l) => l.source))];
+    const sourcesWithTiles = new Set();
+    let revealStarted = false;
+    function startReveal() {
+      if (revealStarted) return;
+      revealStarted = true;
+      const runStep = (step) => {
+        for (const [id, prop, value] of revealSteps[step]) if (map.getLayer(id)) map.setPaintProperty(id, prop, value);
+        if (step < revealSteps.length - 1) setTimeout(() => runStep(step + 1), STEP_GAP_MS);   // each step after the last
+      };
+      runStep(1);
+    }
+    function sourceNeeded(id) {              // a relief source only counts while its layer is in its zoom range
+      const z = map.getZoom();
+      return style.layers.some((l) => l.source === id && z >= (l.minzoom ?? -99) && z < (l.maxzoom ?? 99));
+    }
+    function openingViewLoaded() {
+      return ["openmaptiles", ...reliefSources.filter(sourceNeeded)]
+        .every((id) => sourcesWithTiles.has(id) && map.isSourceLoaded(id));
+    }
+    let reliefTimer = null;
+    map.on("sourcedata", (e) => {
+      if (!e.tile || revealStarted) return;
+      sourcesWithTiles.add(e.sourceId);
+      if (openingViewLoaded()) startReveal();
+      else if (!reliefTimer && sourcesWithTiles.has("openmaptiles") && map.isSourceLoaded("openmaptiles")) {
+        reliefTimer = setTimeout(startReveal, 3000);   // don't wait more than 3 s for slow relief tiles
+      }
+    });
+    map.once("idle", startReveal);           // fallback, e.g. if some tiles fail to load
+    setTimeout(startReveal, 15000);          // last resort: never keep the map hidden for longer than this
+
+    // Built-in place labels (a few cities and towns that the map tiles only name at a later zoom) are
+    // part of style.json, so they are ready instantly, while the map's own city labels wait for their
+    // tiles to download. When zooming in, hold back each built-in label that has just come into range
+    // until the map tile underneath it has arrived, so it appears together with the cities around it.
+    // Labels that are already showing are never held, and nothing is held for longer than 3 seconds.
+    const heldPlaces = new Map();          // feature id -> time it was held
+    let placesInRange = new Set();
+    const placeFeatures = (style.sources.custom_places?.data?.features || []).filter((f) => f.id != null);
+    function placeTileLoaded(lon, lat, z) {
+      const tiles = map.style?.tileManagers?.openmaptiles;
+      if (!tiles?.getIds) return true;     // can't tell: don't hold
+      z = Math.min(z, map.getSource("openmaptiles")?.maxzoom ?? z);
+      const n = 2 ** z, r = (lat * Math.PI) / 180;
+      const x = Math.floor(((lon + 180) / 360) * n);
+      const y = Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n);
+      return tiles.getIds().some((id) => {
+        const t = tiles.getTileByID(id), c = t?.tileID.canonical;
+        return c && c.z === z && c.x === x && c.y === y && t.hasData();
+      });
+    }
+    function setHeld(id, held) {
+      if (held) heldPlaces.set(id, performance.now()); else heldPlaces.delete(id);
+      map.setFeatureState({ source: "custom_places", id }, { held });
+    }
+    function updatePlaceHolds() {
+      const z = Math.floor(map.getZoom());   // the zoom the map tiles are loaded at
+      const inRange = new Set();
+      for (const f of placeFeatures) {
+        const p = f.properties;
+        if (z < p.minz || z >= (p.maxz ?? 99)) continue;
+        inRange.add(f.id);
+        const [lon, lat] = f.geometry.coordinates;
+        const ready = placeTileLoaded(lon, lat, z);
+        if (heldPlaces.has(f.id)) {
+          const waited = performance.now() - heldPlaces.get(f.id);
+          // released when its tile is in, or once every visible map tile is in (e.g. on the globe's edge,
+          // where tiles of a lower zoom are used), or after 3 seconds at most
+          if (ready || (waited > 250 && map.isSourceLoaded("openmaptiles")) || waited > 3000) setHeld(f.id, false);
+        } else if (!placesInRange.has(f.id) && !ready) {
+          setHeld(f.id, true);
+        }
+      }
+      for (const id of heldPlaces.keys()) if (!inRange.has(id)) setHeld(id, false);
+      placesInRange = inRange;
+    }
+    map.on("load", () => {
+      placesInRange = new Set(placeFeatures.filter((f) => {
+        const z = Math.floor(map.getZoom());
+        return z >= f.properties.minz && z < (f.properties.maxz ?? 99);
+      }).map((f) => f.id));
+      map.on("zoom", updatePlaceHolds);
+      map.on("render", () => { if (heldPlaces.size) updatePlaceHolds(); });
+    });
+
+    // Switch the labels and the button tooltips between English and French.
+    function setLanguage(next) {
+      if (next === lang) return;
+      lang = next;
+      for (const [id, text] of Object.entries(labelText)) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "text-field", text[lang]);
+      }
+      showLanguage();
+      writeAddress();
+    }
+    function showLanguage() {
+      const strings = UI_STRINGS[lang];
+      Object.assign(map._locale, strings);   // MapLibre's table of control tooltips (used again on later changes)
+      const label = (selector, key) => {
+        for (const el of map.getContainer().querySelectorAll(selector)) {
+          el.title = strings[key];
+          el.setAttribute("aria-label", strings[key]);
+        }
+      };
+      label(".maplibregl-ctrl-zoom-in", "NavigationControl.ZoomIn");
+      label(".maplibregl-ctrl-zoom-out", "NavigationControl.ZoomOut");
+      label(".maplibregl-ctrl-attrib-button", "AttributionControl.ToggleAttribution");
+      label(".maplibregl-ctrl-globe", "GlobeControl.Enable");
+      label(".maplibregl-ctrl-globe-enabled", "GlobeControl.Disable");
+      map.getCanvas().setAttribute("aria-label", strings["Map.Title"]);
+      languageControl.update();
+      document.documentElement.lang = lang;
+      document.title = PAGE_TITLE[lang];
+    }
+
+    // The EN/FR button at the top right.
+    class LanguageControl {
+      onAdd() {
+        this._container = document.createElement("div");
+        this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+        this._button = document.createElement("button");
+        this._button.type = "button";
+        this._button.className = "language-toggle";
+        this._button.addEventListener("click", () => setLanguage(lang === "en" ? "fr" : "en"));
+        this._container.appendChild(this._button);
+        this.update();
+        return this._container;
+      }
+      update() {
+        if (!this._button) return;
+        const { text, label } = LANGUAGE_BUTTON[lang];
+        this._button.textContent = text;
+        this._button.title = label;
+        this._button.setAttribute("aria-label", label);
+        this._button.lang = text.toLowerCase();
+      }
+      onRemove() {
+        this._container.remove();
+      }
+    }
+    const languageControl = new LanguageControl();
+
+    // Hook up the shield generator right away, before any tiles are laid out.
+    if (shieldDefs) {
+      new ShieldRenderer(shieldDefs, routeParser)
+        .filterImageID(isShieldImage)
+        .filterNetwork(isRoadNetwork)
+        .renderOnMaplibreGL(map);
+    }
+
+    // Belt-and-suspenders: use the projection from the address (globe unless ?proj=2d) even if
+    // style.json's top-level "projection" is ever overwritten by a future edit.
+    map.on("style.load", () => {
+      map.setProjection({ type: proj === "2d" ? "mercator" : "globe" });
+      projectionName = proj === "2d" ? "flat" : "globe";
+      enforceMinZoom();
+      showLanguage();
+    });
+
+    // Lowest zoom allowed: 2 on the flat map. On the globe the minimum is a globe the size of zoom 2 at
+    // the equator. MapLibre's zoom number for the same globe size drops away from the equator (by log2 of
+    // the cosine of the latitude, e.g. about 1 lower at 60 degrees), so the globe minimum follows it down.
+    // That keeps the globe the same size while dragging towards the poles, as in Google Maps.
+    const MIN_ZOOM = { flat: 2, globe: 2 };
+    let projectionName = proj === "2d" ? "flat" : "globe";
+    function enforceMinZoom() {
+      let min = MIN_ZOOM.flat;
+      if (projectionName === "globe") {
+        const lat = Math.min(Math.abs(map.getCenter().lat), 85);
+        min = MIN_ZOOM.globe + Math.log2(Math.cos(lat * Math.PI / 180));
+      }
+      if (Math.abs(map.getMinZoom() - min) > 1e-6) map.setMinZoom(min);
+      if (map.getZoom() < min - 1e-6 && !map.isMoving()) {
+        map.jumpTo({ zoom: min });
+      }
+    }
+    map.on("projectiontransition", (e) => {
+      projectionName = e.newProjection === "globe" ? "globe" : "flat";
+      proj = projectionName === "globe" ? "3d" : "2d";
+      writeAddress();
+      enforceMinZoom();
+      requestAnimationFrame(enforceMinZoom);   // once the new projection has taken effect
+    });
+    map.on("move", enforceMinZoom);
+    map.on("moveend", enforceMinZoom);
+
+    // The map always faces north and is never tilted: no rotating or tilting with Ctrl/right-drag,
+    // two-finger touch or the keyboard, and no compass ("Reset bearing to north") button.
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
+    map.touchPitch.disable();
+    map.keyboard.disableRotation();
+    // A shared link may still carry a rotation from before; face north again.
+    map.once("load", () => { if (map.getBearing() !== 0) map.setBearing(0); });
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
+
+    // Buttons at the top right, from the top: language (EN/FR), globe on/off, zoom in/out.
+    map.addControl(languageControl, "top-right");
+    // Globe on/off button. (Included in MapLibre GL JS since v4.1 — safe to skip if an older build is ever swapped in.)
+    if (typeof maplibregl.GlobeControl === "function") {
+      map.addControl(new maplibregl.GlobeControl(), "top-right");
+    }
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+
+    map.on("error", (e) => {
+      console.error("Map error:", e && e.error ? e.error : e);
+    });
+  </script>
+</body>
+</html>

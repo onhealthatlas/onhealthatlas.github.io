@@ -1148,21 +1148,21 @@
         whoBtn: { a: "Everyone", k: "Children", d: "Adults" },
         modeRate: "Percentage", modeCount: "Number",
         loading: "Loading…", loadError: "The map boundaries couldn't be loaded. Please refresh the page.",
-        riding: "Riding", postalArea: "Postal area",
+        riding: "Provincial riding", postalArea: "Postal area",
         // who, as a noun: "Share of [people] without …"
         whoNoun: { a: "people", k: "children (0–17)", d: "adults (18+)" },
         whoName: { a: "Everyone", k: "Children (0–17)", d: "Adults (18+)" },
         lgTitle: {
-          rate: (w, y) => `Share of ${w} without a regular family doctor, ${y}`,
+          rate: (w, y) => `Percentage of ${w} without a regular family doctor, ${y}`,
           count: (w, y) => `Number of ${w} without a regular family doctor, ${y}`,
-          chgRate: (w) => `Change in the share of ${w} without a regular family doctor, 2020 to 2022`,
+          chgRate: (w) => `Change in the percentage of ${w} without a regular family doctor, 2020 to 2022`,
           chgCount: (w) => `Change in the number of ${w} without a regular family doctor, 2020 to 2022`,
         },
         lgCaption: { level: "Darker = more without a regular family doctor", chg: "Darker = bigger increase" },
         lgDesc: {
           rate: (w, y) => `Out of all ${w} in the area, the share with no regular family doctor on March 31, ${y}.`,
           count: (w, y) => `The number of ${w} in the area with no regular family doctor on March 31, ${y}.`,
-          chgRate: "In percentage points: the share in 2022 minus the share in 2020. For example, going from 12% to 15% is up 3 points.",
+          chgRate: "In percentage points: the share in 2022 minus the share in 2020.",
           chgCount: "The number in 2022 minus the number in 2020.",
         },
         under: (v) => `Under ${v}`, orMore: (v) => `${v} or more`, range: (a, b) => `${a} – ${b}`, exactly: (v) => `${v}`,
@@ -1170,21 +1170,24 @@
         ptsOrMore: (v) => `+${v} points or more`, ptsRange: (a, b) => `+${a} – ${b} points`,
         fell: "Fell or no change",
         legendNA: "Not available (too few people)", legendNoData: "Not in the source data",
-        points: (v) => `${v} points`, people: "people", ofPeople: (w) => `of ${w}`,
-        about_: "about",
-        ppWithout: (y) => `Without a regular family doctor, ${y}`, ppChange: "Change since 2020",
-        ppY: { 2020: "2020", 2022: "2022", chg: "Change since 2020" },
+        points: (v) => `${v} points`, people: "people", ofPeople: (w) => `of ${w}`, unitWho: { a: "people", k: "children", d: "adults" },
+        // popup headline: "Percentage of children without a regular family doctor, 2022"
+        ppPct: (g, y) => `Percentage of ${{ a: "people", k: "children", d: "adults" }[g]} without a regular family doctor, ${y}`,
+        ppNum: (g, y) => `Number of ${{ a: "people", k: "children", d: "adults" }[g]} without a regular family doctor, ${y}`,
+        ppChgPct: (g) => `Change in the percentage of ${{ a: "people", k: "children", d: "adults" }[g]} without a regular family doctor, 2020 to 2022`,
+        ppChgNum: (g) => `Change in the number of ${{ a: "people", k: "children", d: "adults" }[g]} without a regular family doctor, 2020 to 2022`,
+        ppY: { 2020: "2020", 2022: "2022", chg: "Change from 2020 to 2022" },
         popNoData: "Not in the source data.", popWithheld: "Not released (too few people).",
         popEst: "Riding figures are estimates built from postal areas.", popSmall: "Few people live here.",
         popRiding: (n) => `Riding: ${n}`, popMostly: (n, p) => `Mostly in ${n} (${p})`,
         // side panel
         allOntario: "All of Ontario", showOntario: "Show all of Ontario",
         ontarioHint: "Click a riding or postal area on the map, or search for one, to see its figures. Until then, this panel shows Ontario as a whole.",
-        bNow: (y) => `Without a regular family doctor, ${y}`,
+        bNow: (y) => `People without a regular family doctor, ${y}`,
         heroNow: (n) => `of people had no regular family doctor (${n} people)`,
         segWithout: "Without a regular family doctor", segWith: "With a regular family doctor",
         ontarioCmp: "Ontario:",
-        bChange: "Change since 2020",
+        bChange: "Change from 2020 to 2022",
         heroUp: (r20, n) => `compared with 2020 (${r20}): ${n} more people`,
         heroDown: (r20, n) => `compared with 2020 (${r20}): ${n} fewer people`,
         heroSame: (r20) => `the same as in 2020 (${r20})`,
@@ -1192,14 +1195,14 @@
         bGroups: "Children and adults",
         groupNA: "Not released (too few people)",
         allFigures: "Show all figures as a table",
-        rows: { without: "Without a regular family doctor", with: "With a regular family doctor", total: "People counted" },
+        rows: { without: "Without a regular family doctor", with: "With a regular family doctor", total: { a: "People counted", k: "Children counted", d: "Adults counted" } },
         notes: {
           whole: (list) => `Made up of the postal areas ${list}.`,
-          built: (list) => `Estimate: postal areas don’t follow riding lines, so this riding’s figures are made up of shares of these postal areas, split by where their residents lived (2021 Census): ${list}. A percentage is the share of that postal area’s residents who live in this riding.`,
+          built: (list) => `Estimate: postal areas don’t follow riding lines, so this riding’s figures are made up of shares of these postal areas, split by where their residents lived (2021 Census): ${list}. Percentages refer to the share of each postal area’s residents living in this riding.`,
           more: (n) => `and ${n} more`,
           inRiding: (n) => `Riding: ${n}.`,
-          split: (list) => `Split between ridings: ${list}. A percentage is the share of this postal area’s residents living in that riding (2021 Census).`,
-          small: (n) => `Only ${n} people here were counted in 2022, so a few people can change the percentages a lot.`,
+          split: (list) => `Split between ridings: ${list}. Percentages refer to the share of this postal area’s residents living in each riding (2021 Census).`,
+          small: (n) => `Only ${n} people were counted here in 2022, so a few people can change the percentages a lot.`,
           withheld: "Some figures for this area weren’t released because too few people live here.",
           noData: (n) => `${n} isn’t in the source data, so there are no figures for it.`,
         },
@@ -1207,9 +1210,9 @@
         about: [
           "<b>People without a regular family doctor</b>: Ontario health records show no doctor, nurse practitioner or clinic that they regularly get their primary care from. Some only went to emergency departments or to a mix of walk-in clinics; others had no primary care at all in that time. (The source calls them “uncertainly attached”.)",
           "Figures are for March 31, 2020 and March 31, 2022, the most recent available by postal area. Shares are out of everyone in the area with Ontario health coverage (OHIP).",
-          "A postal area is the first three characters of a postal code (for example, M9V). People are placed by the postal code in their health records, which can be out of date, so fast-growing new neighbourhoods may show fewer people than live there.",
-          "Riding figures are estimates. Postal areas don’t follow riding lines, so each postal area’s figures are shared among its ridings by where its residents lived in the 2021 Census. Children and adults are shared out the same way.",
-          "Some postal areas have too few residents for their figures to be released; they’re shown as not available.",
+          "A postal area is the first three characters of a postal code (for example, M3A). People are placed by the postal code in their health records, which can be out of date, so fast-growing new neighbourhoods may show fewer people than live there.",
+          "Riding figures are estimates. Postal areas don’t follow riding lines, so each postal area’s figures, including those for children and adults, are divided among its ridings according to where its residents lived in the 2021 Census.",
+          "Where very few people live in a postal area, the source doesn’t release its figures. The map marks these as not available.",
           "<b>Source:</b> INSPIRE-PHC, “Comparing all children and adults by attachment status and FSA in 2020 and 2022” (May 2023), using the method of Jaakkimainen et al. (2021). The source notes that the Ministry of Health has not endorsed this definition. Population: 2021 Census.",
         ],
       },
@@ -1224,20 +1227,22 @@
         whoBtn: { a: "Tous", k: "Enfants", d: "Adultes" },
         modeRate: "Pourcentage", modeCount: "Nombre",
         loading: "Chargement…", loadError: "Les limites de la carte n’ont pas pu être chargées. Veuillez actualiser la page.",
-        riding: "Circonscription", postalArea: "Secteur postal",
+        riding: "Circonscription provinciale", postalArea: "Secteur postal",
         whoNoun: { a: "personnes", k: "enfants (0 à 17 ans)", d: "adultes (18 ans et plus)" },
+        // with "de" in front, elided before a vowel: "Pourcentage d’enfants …"
+        whoDe: { a: "de personnes", k: "d’enfants (0 à 17 ans)", d: "d’adultes (18 ans et plus)" },
         whoName: { a: "Ensemble des personnes", k: "Enfants (0 à 17 ans)", d: "Adultes (18 ans et plus)" },
         lgTitle: {
-          rate: (w, y) => `Proportion de ${w} sans médecin de famille habituel, ${y}`,
-          count: (w, y) => `Nombre de ${w} sans médecin de famille habituel, ${y}`,
-          chgRate: (w) => `Évolution de la proportion de ${w} sans médecin de famille habituel, de 2020 à 2022`,
-          chgCount: (w) => `Évolution du nombre de ${w} sans médecin de famille habituel, de 2020 à 2022`,
+          rate: (w, y, wDe) => `Pourcentage ${wDe} sans médecin de famille habituel, ${y}`,
+          count: (w, y, wDe) => `Nombre ${wDe} sans médecin de famille habituel, ${y}`,
+          chgRate: (w, wDe) => `Évolution du pourcentage ${wDe} sans médecin de famille habituel, de 2020 à 2022`,
+          chgCount: (w, wDe) => `Évolution du nombre ${wDe} sans médecin de famille habituel, de 2020 à 2022`,
         },
         lgCaption: { level: "Plus foncé = plus de personnes sans médecin de famille habituel", chg: "Plus foncé = plus forte hausse" },
         lgDesc: {
           rate: (w, y) => `Sur l’ensemble des ${w} du territoire, proportion sans médecin de famille habituel au 31 mars ${y}.`,
-          count: (w, y) => `Nombre de ${w} du territoire sans médecin de famille habituel au 31 mars ${y}.`,
-          chgRate: "En points de pourcentage : la proportion en 2022 moins celle de 2020. Par exemple, passer de 12 % à 15 % est une hausse de 3 points.",
+          count: (w, y, wDe) => `Nombre ${wDe} du territoire sans médecin de famille habituel au 31 mars ${y}.`,
+          chgRate: "En points de pourcentage : la proportion en 2022 moins celle de 2020.",
           chgCount: "Le nombre en 2022 moins le nombre en 2020.",
         },
         under: (v) => `Moins de ${v}`, orMore: (v) => `${v} ou plus`, range: (a, b) => `${a} – ${b}`, exactly: (v) => `${v}`,
@@ -1245,20 +1250,22 @@
         ptsOrMore: (v) => `+${v} points ou plus`, ptsRange: (a, b) => `+${a} – ${b} points`,
         fell: "En baisse ou stable",
         legendNA: "Non disponible (trop peu de personnes)", legendNoData: "Absent des données sources",
-        points: (v) => `${v} points`, people: "personnes", ofPeople: (w) => `des ${w}`,
-        about_: "environ",
-        ppWithout: (y) => `Sans médecin de famille habituel, ${y}`, ppChange: "Évolution depuis 2020",
-        ppY: { 2020: "2020", 2022: "2022", chg: "Évolution depuis 2020" },
+        points: (v) => `${v} points`, people: "personnes", ofPeople: (w) => `des ${w}`, unitWho: { a: "personnes", k: "enfants", d: "adultes" },
+        ppPct: (g, y) => `Pourcentage ${{ a: "de personnes", k: "d’enfants", d: "d’adultes" }[g]} sans médecin de famille habituel, ${y}`,
+        ppNum: (g, y) => `Nombre ${{ a: "de personnes", k: "d’enfants", d: "d’adultes" }[g]} sans médecin de famille habituel, ${y}`,
+        ppChgPct: (g) => `Évolution du pourcentage ${{ a: "de personnes", k: "d’enfants", d: "d’adultes" }[g]} sans médecin de famille habituel, de 2020 à 2022`,
+        ppChgNum: (g) => `Évolution du nombre ${{ a: "de personnes", k: "d’enfants", d: "d’adultes" }[g]} sans médecin de famille habituel, de 2020 à 2022`,
+        ppY: { 2020: "2020", 2022: "2022", chg: "Évolution de 2020 à 2022" },
         popNoData: "Absent des données sources.", popWithheld: "Non publié (trop peu de personnes).",
         popEst: "Les chiffres par circonscription sont des estimations tirées des secteurs postaux.", popSmall: "Peu de personnes vivent ici.",
         popRiding: (n) => `Circonscription : ${n}`, popMostly: (n, p) => `Surtout : ${n} (${p})`,
         allOntario: "Ensemble de l’Ontario", showOntario: "Afficher l’ensemble de l’Ontario",
         ontarioHint: "Cliquez sur une circonscription ou un secteur postal sur la carte, ou recherchez-en un, pour en voir les chiffres. D’ici là, ce panneau présente l’ensemble de l’Ontario.",
-        bNow: (y) => `Sans médecin de famille habituel, ${y}`,
+        bNow: (y) => `Personnes sans médecin de famille habituel, ${y}`,
         heroNow: (n) => `des personnes n’avaient pas de médecin de famille habituel (${n} personnes)`,
         segWithout: "Sans médecin de famille habituel", segWith: "Avec un médecin de famille habituel",
         ontarioCmp: "Ontario :",
-        bChange: "Évolution depuis 2020",
+        bChange: "Évolution de 2020 à 2022",
         heroUp: (r20, n) => `par rapport à 2020 (${r20}) : ${n} personnes de plus`,
         heroDown: (r20, n) => `par rapport à 2020 (${r20}) : ${n} personnes de moins`,
         heroSame: (r20) => `comme en 2020 (${r20})`,
@@ -1266,13 +1273,13 @@
         bGroups: "Enfants et adultes",
         groupNA: "Non publié (trop peu de personnes)",
         allFigures: "Afficher tous les chiffres sous forme de tableau",
-        rows: { without: "Sans médecin de famille habituel", with: "Avec un médecin de famille habituel", total: "Personnes comptées" },
+        rows: { without: "Sans médecin de famille habituel", with: "Avec un médecin de famille habituel", total: { a: "Personnes comptées", k: "Enfants comptés", d: "Adultes comptés" } },
         notes: {
           whole: (list) => `Formée des secteurs postaux ${list}.`,
-          built: (list) => `Estimation : les secteurs postaux ne suivent pas les limites des circonscriptions; les chiffres de cette circonscription sont donc formés de parts de ces secteurs postaux, réparties selon le lieu de résidence de leurs habitants (Recensement de 2021) : ${list}. Un pourcentage est la part des habitants de ce secteur postal qui vivent dans cette circonscription.`,
+          built: (list) => `Estimation : les secteurs postaux ne suivent pas les limites des circonscriptions; les chiffres de cette circonscription sont donc formés de parts de ces secteurs postaux, réparties selon le lieu de résidence de leurs habitants (Recensement de 2021) : ${list}. Les pourcentages indiquent la part des habitants de chaque secteur postal qui vivent dans cette circonscription.`,
           more: (n) => `et ${n} autres`,
           inRiding: (n) => `Circonscription : ${n}.`,
-          split: (list) => `Réparti entre des circonscriptions : ${list}. Un pourcentage est la part des habitants de ce secteur postal qui vivent dans cette circonscription (Recensement de 2021).`,
+          split: (list) => `Réparti entre des circonscriptions : ${list}. Les pourcentages indiquent la part des habitants de ce secteur postal qui vivent dans chaque circonscription (Recensement de 2021).`,
           small: (n) => `Seulement ${n} personnes ont été comptées ici en 2022; quelques personnes peuvent donc faire beaucoup varier les pourcentages.`,
           withheld: "Certains chiffres de ce territoire n’ont pas été publiés parce que trop peu de personnes y vivent.",
           noData: (n) => `${n} ne figure pas dans les données sources; aucun chiffre n’est donc disponible.`,
@@ -1281,9 +1288,9 @@
         about: [
           "<b>Personnes sans médecin de famille habituel</b> : selon les dossiers de santé de l’Ontario, ces personnes n’ont pas de médecin, d’infirmière praticienne ou de clinique auprès duquel elles reçoivent habituellement leurs soins primaires. Certaines sont seulement allées aux urgences ou dans diverses cliniques sans rendez-vous; d’autres n’ont reçu aucun soin primaire pendant cette période. (La source parle de patients au « rattachement incertain ».)",
           "Les chiffres sont au 31 mars 2020 et au 31 mars 2022, les plus récents par secteur postal. Les proportions sont calculées sur l’ensemble des personnes du territoire couvertes par l’Assurance-santé de l’Ontario (OHIP).",
-          "Un secteur postal correspond aux trois premiers caractères d’un code postal (par exemple, M9V). Les personnes sont placées selon le code postal de leur dossier de santé, qui n’est pas toujours à jour; les nouveaux quartiers en forte croissance peuvent donc compter moins de personnes qu’il n’y en vit réellement.",
-          "Les chiffres par circonscription sont des estimations. Les secteurs postaux ne suivent pas les limites des circonscriptions; les chiffres de chaque secteur postal sont donc répartis entre ses circonscriptions selon le lieu de résidence de ses habitants au Recensement de 2021. Les enfants et les adultes sont répartis de la même façon.",
-          "Certains secteurs postaux comptent trop peu d’habitants pour que leurs chiffres soient publiés; ils sont indiqués comme non disponibles.",
+          "Un secteur postal correspond aux trois premiers caractères d’un code postal (par exemple, M3A). Les personnes sont placées selon le code postal de leur dossier de santé, qui n’est pas toujours à jour; les nouveaux quartiers en forte croissance peuvent donc compter moins de personnes qu’il n’y en vit réellement.",
+          "Les chiffres par circonscription sont des estimations. Les secteurs postaux ne suivent pas les limites des circonscriptions; les chiffres de chaque secteur postal, y compris ceux des enfants et des adultes, sont donc répartis entre ses circonscriptions selon le lieu de résidence de ses habitants au Recensement de 2021.",
+          "Lorsque très peu de personnes vivent dans un secteur postal, la source n’en publie pas les chiffres. La carte les indique comme non disponibles.",
           "<b>Source :</b> INSPIRE-PHC, « Comparing all children and adults by attachment status and FSA in 2020 and 2022 » (mai 2023), selon la méthode de Jaakkimainen et coll. (2021). La source précise que le ministère de la Santé n’a pas approuvé cette définition. Population : Recensement de 2021.",
         ],
       },
@@ -1313,7 +1320,8 @@
     const PCT_BREAKS = [10, 12.5, 15, 20];
     const PTS_BREAKS = [0.1, 2, 4, 6];   // below 0.1 points: fell or no change
 
-    // Riding counts are estimates, so they're shown to the nearest 10 ("about 22,900").
+    // Riding counts are estimates, so they're shown to the nearest 10 (22,900, not 22,902); the popup and
+    // side panel say they're estimates.
     const round10 = (v) => (v == null ? null : Math.round(v / 10) * 10);
     // All derived figures for one area. layer: "ped" (riding), "fsa" (postal area) or "ontario".
     function derive(rec, layer) {
@@ -1362,8 +1370,8 @@
       if (kind === "pts" && opts.unit !== false) return t().points(s);
       return s;
     }
-    // A count as shown: riding counts are estimates ("about 22,900").
-    const fmtN = (v, est, kind = "count") => (v == null ? "–" : `${est ? `${t().about_} ` : ""}${fmt(v, kind)}`);
+    // A count as shown (riding counts are already rounded to the nearest 10; see derive).
+    const fmtN = (v, est, kind = "count") => (v == null ? "–" : fmt(v, kind));
 
     // ----------------------------------------------------------------------------------------
     // Classes
@@ -1577,7 +1585,7 @@
     function renderLegend() {
       const el = $("legend"), x = t();
       const metric = metricKey(), kind = KIND[metric], cls = classesFor(state.layer, metric);
-      const w = x.whoNoun[state.who];
+      const w = x.whoNoun[state.who], wDe = x.whoDe?.[state.who];   // wDe: French only
       const rows = cls.colors.map((c, i) => ({ c, label: legendLabel(i, cls, kind) })).reverse();   // darkest (worst) first
       let naRows = "";
       if (allDerived(state.layer).some((d) => d[metric] == null)) naRows += `<div class="lg-row"><span class="sw sw-na"></span>${esc(x.legendNA)}</div>`;
@@ -1585,11 +1593,11 @@
       const anyNoData = SRC[state.layer] ? [...byId[state.layer].values()].some(({ d }) => !d.hasData) : state.layer === "fsa";
       if (anyNoData) naRows += `<div class="lg-row"><span class="sw sw-nodata"></span>${esc(x.legendNoData)}</div>`;
       const title = state.year === "chg"
-        ? (state.mode === "rate" ? x.lgTitle.chgRate(w) : x.lgTitle.chgCount(w))
-        : (state.mode === "rate" ? x.lgTitle.rate(w, state.year) : x.lgTitle.count(w, state.year));
+        ? (state.mode === "rate" ? x.lgTitle.chgRate(w, wDe) : x.lgTitle.chgCount(w, wDe))
+        : (state.mode === "rate" ? x.lgTitle.rate(w, state.year, wDe) : x.lgTitle.count(w, state.year, wDe));
       const desc = state.year === "chg"
         ? (state.mode === "rate" ? x.lgDesc.chgRate : x.lgDesc.chgCount)
-        : (state.mode === "rate" ? x.lgDesc.rate(w, state.year) : x.lgDesc.count(w, state.year));
+        : (state.mode === "rate" ? x.lgDesc.rate(w, state.year) : x.lgDesc.count(w, state.year, wDe));
       el.innerHTML = `<div class="lg-title">${esc(title)}</div>
         <div class="lg-caption">${esc(state.year === "chg" ? x.lgCaption.chg : x.lgCaption.level)}</div>
         <div class="lg-rows">${rows.map((r) => `<div class="lg-row"><span class="sw" style="background:${r.c}"></span>${esc(r.label)}</div>`).join("")}</div>
@@ -1646,11 +1654,12 @@
       }
       if (!d.hasData) return html + `<div class="pp-na">${esc(x.popNoData)}</div>`;
       const g = state.who, f = periodFigures(d, g, state.year);
-      const groupPrefix = g === "a" ? "" : `${x.whoName[g]} · `;
-      const label = groupPrefix + (state.year === "chg" ? x.ppChange : x.ppWithout(state.year));
+      const label = state.year === "chg"
+        ? (state.mode === "rate" ? x.ppChgPct(g) : x.ppChgNum(g))
+        : (state.mode === "rate" ? x.ppPct(g, state.year) : x.ppNum(g, state.year));
       if (f.rate != null) {
         const big = state.mode === "rate" ? f.rate : f.count;
-        const other = state.mode === "rate" ? `${f.count} ${state.year === "chg" ? "" : x.people}`.trim() : f.rate;
+        const other = state.mode === "rate" ? `${f.count} ${x.unitWho[g]}` : f.rate;
         html += `<div class="pp-main"><div class="pp-big">${esc(big)}</div><div class="pp-mlbl"><b>${esc(label)}</b><br>${esc(other)}</div></div>`;
       } else {
         html += `<div class="pp-main"><div class="pp-mlbl"><b>${esc(label)}</b><br>${esc(x.popWithheld)}</div></div>`;
@@ -1754,7 +1763,7 @@
         body += `<tr><th>${esc(x.whoName[g])}</th><th class="num">2020</th><th class="num">2022</th></tr>`;
         body += row(x.rows.without, cell(y.n.u20, y.r20), cell(y.n.u22, y.r22));
         body += row(x.rows.with, cell(y.n.w20, y.r20 == null ? null : 100 - y.r20), cell(y.n.w22, y.r22 == null ? null : 100 - y.r22));
-        body += row(x.rows.total, cell(y.n.t20, null), cell(y.n.t22, null));
+        body += row(x.rows.total[g], cell(y.n.t20, null), cell(y.n.t22, null));
       }
       return `<details class="more"><summary>${esc(x.allFigures)}</summary><table class="all"><tbody>${body}</tbody></table></details>`;
     }

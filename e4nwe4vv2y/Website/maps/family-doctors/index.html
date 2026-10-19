@@ -51,7 +51,8 @@
   </div>
   <div class="map-frame">
     <!-- The interactive map loads from the map/ folder next to this page. See README.md. -->
-    <iframe src="map/" title="Interactive map: Family doctors and their patients" allowfullscreen></iframe>
+    <!-- data-fit-height: on phones the frame grows to fit the map, so the page scrolls straight past it (see assets/js/map-frame.js). -->
+    <iframe src="map/" title="Interactive map: Family doctors and their patients" allowfullscreen data-fit-height></iframe>
   </div>
   <section class="map-about" aria-labelledby="about-map">
     <div class="wrap">
@@ -117,5 +118,6 @@
   } else if (b) { b.hidden = true; }
 })();
 </script>
+<script src="../../assets/js/map-frame.js"></script>
 </body>
 </html>

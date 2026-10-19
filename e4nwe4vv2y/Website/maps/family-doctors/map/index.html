@@ -8,8 +8,51 @@
        rules alone can let a pinch through. Safari ignores them for pinching (see the "ios" class below).
        The browser's own zoom setting still zooms the page. -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <!-- iPhone and iPad (every browser there uses Safari's engine): see "iPhone" in the styles -->
-  <script>if (window.CSS?.supports?.("-webkit-touch-callout", "none")) document.documentElement.classList.add("ios");</script>
+  <script>
+    // [map overlay] Classes on <html>, set before the page is drawn:
+    //  - ios: iPhone and iPad (every browser there uses Safari's engine); see "iPhone" in the styles.
+    //  - embedded: shown inside another page (an iframe). ?embed=1 or ?embed=0 overrides the check.
+    //  - fit-height: the page around it asked the map to fit its frame (see "Fitting the frame" below).
+    (() => {
+      const root = document.documentElement;
+      if (window.CSS?.supports?.("-webkit-touch-callout", "none")) root.classList.add("ios");
+      const embed = new URLSearchParams(location.search).get("embed");
+      const embedded = embed === "1" ? true : embed === "0" ? false : (() => { try { return window.self !== window.top; } catch { return true; } })();
+      if (!embedded) return;
+      root.classList.add("embedded");
+
+      // Fitting the frame. On a phone, a map that scrolls inside its frame is a scroll inside a scroll:
+      // readers have to get through all of it before the page around it moves on. So a page that can resize
+      // the frame says "map:fit-height" (with its own screen height), and from then on the map reports
+      // its full height ("map:height") whenever that changes, and the page sets the frame to that height.
+      // The map then scrolls along with the page like any other content. On wider screens the map fits
+      // the frame it is given instead, and reports no height. Pages that don't ask get the usual behaviour.
+      const narrow = window.matchMedia("(max-width: 860px)");
+      let fitting = false;
+      function report() {
+        if (!fitting) return;
+        const app = document.getElementById("app");
+        const height = narrow.matches && app ? Math.ceil(app.getBoundingClientRect().height) : null;
+        window.parent.postMessage({ type: "map:height", height }, "*");
+      }
+      window.addEventListener("message", (e) => {
+        if (e.source !== window.parent || e.data?.type !== "map:fit-height") return;
+        const vh = Number(e.data.viewportHeight);
+        // The map's height comes from the page's screen height, not the frame's (which grows to fit the map).
+        if (vh >= 200 && vh <= 5000) root.style.setProperty("--host-vh", `${Math.round(vh)}px`);
+        if (!fitting) {
+          fitting = true;
+          root.classList.add("fit-height");
+          const app = document.getElementById("app");
+          if (app) new ResizeObserver(report).observe(app);
+          narrow.addEventListener("change", report);
+        }
+        report();
+      });
+      const ready = () => window.parent.postMessage({ type: "map:ready" }, "*");
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ready); else ready();
+    })();
+  </script>
   <meta name="description" content="How many people aren’t registered with a family doctor, and how many doctors are close to retirement, in every Ontario riding and municipality." />
 
   <!-- Every dependency is served from the R2 bucket (the CDN address below).
@@ -263,8 +306,14 @@
       /* iPhone: the page scrolls inside its own box rather than as a whole. While the whole page is
          scrolling, or still gliding after a flick, Safari lets a pinch zoom it despite the touch-action
          rules below; on tablets, where only the panels scroll, that doesn't happen. */
-      html.ios, html.ios body { overflow: hidden; }
-      html.ios #app { display: block; height: 100%; height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+      /* Not inside another page: there, a pinch zooms the outer page whatever this page does, and the
+         scrolling must carry on into the outer page at the end of the map. */
+      html.ios:not(.embedded), html.ios:not(.embedded) body { overflow: hidden; }
+      html.ios:not(.embedded) #app { display: block; height: 100%; height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+      /* Fitting the frame (see the script at the top): the page grows to its full height, and the map's
+         height comes from the outer page's screen height (the frame's own height follows the map). */
+      html.fit-height #app { min-height: 0; }
+      html.fit-height #mapbox { height: calc(var(--host-vh, 640px) * 0.62); }
     }
     @media (min-width: 861px) { #mapbox { position: absolute; inset: 0; } }
     #mapbox { z-index: 0; }   /* keeps the map's own overlays (e.g. the Ctrl + scroll hint) under the options card */
@@ -702,8 +751,7 @@
     // past the map: when it's embedded in another page (an <iframe>), and on phones, where the details sit below
     // the map. Opened on its own on a computer, the plain mouse wheel zooms the map.
     // ?embed=1 or ?embed=0 in the address overrides the automatic check.
-    const embedded = startParams.get("embed") === "1" ? true : startParams.get("embed") === "0" ? false
-      : (() => { try { return window.self !== window.top; } catch { return true; } })();
+    const embedded = document.documentElement.classList.contains("embedded");   // set at the top of the page
     const needCooperative = () => embedded || narrowScreen();
     function ontarioPadding() {
       const box = document.getElementById("map").getBoundingClientRect();

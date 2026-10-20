@@ -1,0 +1,563 @@
+:root {
+  --surface-1: #ffffff;
+  --surface-2: #f4f5f7;
+  --border: #dde1e7;
+  --text-primary: #161a20;
+  --text-secondary: #565f6d;
+  --text-muted: #848d99;
+  --accent: #184f95;
+  --accent-ink: #0d366b;
+  --series-blue: #2a78d6;
+  --no-data: #e2e4e8;
+  --shadow: 0 6px 24px rgba(20, 26, 38, 0.14), 0 1px 2px rgba(20, 26, 38, 0.10);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+#mapWrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  background: #0b1026;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  background: #0b1026;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
+}
+
+/* ---------- Left control panel (floating over the map) ---------- */
+
+.panel {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 328px;
+  max-width: calc(100vw - 28px);
+  max-height: calc(100vh - 28px);
+  background: var(--surface-1);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  z-index: 5;
+  color: var(--text-primary);
+}
+
+.panel-inner {
+  padding: 16px 16px 14px;
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
+}
+
+.panel-header {
+  margin-bottom: 12px;
+}
+
+.panel-title {
+  margin: 0 0 2px;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.panel-subtitle {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+/* Segmented metric toggle */
+.segmented {
+  display: flex;
+  background: var(--surface-2);
+  border-radius: 9px;
+  padding: 3px;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.segmented-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 7px 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.segmented-btn:hover:not(.is-active) {
+  color: var(--text-primary);
+}
+
+.segmented-btn.is-active {
+  background: var(--surface-1);
+  color: var(--accent-ink);
+  box-shadow: 0 1px 3px rgba(20, 26, 38, 0.18);
+}
+
+/* Year / slider */
+.year-block {
+  margin: 12px 0 4px;
+}
+
+.year-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.year-display {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.year-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.play-btn {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.play-btn:hover { background: var(--surface-2); }
+
+.year-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+.year-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(20, 26, 38, 0.4);
+  cursor: pointer;
+}
+.year-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(20, 26, 38, 0.4);
+  cursor: pointer;
+}
+.year-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.slider-endpoints {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding-left: 38px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Legend */
+.legend-block {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.legend-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.legend-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    #cde2fb, #b7d3f6, #9ec5f4, #86b6ef, #6da7ec, #5598e7,
+    #3987e5, #2a78d6, #256abf, #1c5cab, #184f95, #104281, #0d366b
+  );
+  margin-bottom: 4px;
+}
+
+.legend-endpoints {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-note-row {
+  display: block;
+  margin-top: 8px;
+}
+
+.legend-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.legend-note::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: #c7cee0;
+  border: 1px solid var(--border);
+}
+
+/* Footer */
+.panel-footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.footer-note {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 6px;
+}
+.footer-note:last-child { margin-bottom: 0; }
+
+/* ---------- Custom map controls ---------- */
+
+.lang-ctrl-btn {
+  width: 29px;
+  height: 29px;
+  border: none;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+.lang-ctrl-btn:hover {
+  background: var(--surface-2);
+}
+
+/* ---------- Popups ---------- */
+
+.chn-popup .maplibregl-popup-content {
+  width: 260px;
+  padding: 12px 14px 13px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+/* MapLibre squares off the content's corner nearest the tip so the tip sits
+   flush against the box (see its own anchor-* rules in maplibregl.css). Our
+   blanket border-radius above has equal CSS specificity and loads after the
+   library's stylesheet, so it was winning the cascade and re-rounding that
+   corner -- leaving the tip visually detached on all four corner-anchored
+   popups. These rules add a class to raise specificity and restore the
+   square corner so the tip reconnects. */
+.chn-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-content {
+  border-top-left-radius: 0;
+}
+.chn-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-content {
+  border-top-right-radius: 0;
+}
+.chn-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-content {
+  border-bottom-left-radius: 0;
+}
+.chn-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-content {
+  border-bottom-right-radius: 0;
+}
+
+.chn-popup-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.chn-popup-year {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chn-popup-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.chn-popup-row:first-of-type {
+  border-top: none;
+}
+
+.chn-popup-row .label {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.chn-popup-row .value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Suppressed-data rows stack the label above the value instead of sitting
+   side by side, since "Not available (data suppressed)" is too long to fit
+   next to the label without overlapping it. */
+.chn-popup-row.is-suppressed {
+  display: block;
+}
+.chn-popup-row.is-suppressed .label {
+  display: block;
+  margin-bottom: 2px;
+}
+.chn-popup-row .value.is-na {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: normal;
+  white-space: normal;
+  text-align: left;
+}
+
+.chn-popup-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0 0 8px;
+}
+
+/* ---------- Right-hand chart pane ---------- */
+
+#rightPane {
+  display: none;
+  flex: 0 0 340px;
+  width: 340px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--surface-1);
+  border-left: 1px solid var(--border);
+  box-shadow: -6px 0 20px rgba(20, 26, 38, 0.06);
+  padding: 20px 20px 24px;
+  z-index: 5;
+  position: relative;
+}
+#rightPane.is-open {
+  display: block;
+}
+
+.rp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rp-header-text {
+  min-width: 0;
+}
+
+.rp-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.rp-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+.rp-close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.rp-close:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.metric-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.metric-block:first-of-type {
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+.metric-block-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.metric-current {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.mc-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  font-variant-numeric: tabular-nums;
+}
+.mc-value.is-na {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: normal;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 78px;
+  display: block;
+  overflow: visible;
+}
+
+.chart-svg .baseline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.chart-svg .series-line {
+  fill: none;
+  stroke: var(--series-blue);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart-svg .series-point {
+  fill: var(--series-blue);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+.chart-svg .series-point.is-current {
+  fill: var(--accent-ink);
+}
+.chart-svg .axis-label {
+  font-size: 8.5px;
+  fill: var(--text-muted);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.chart-svg .hit-area {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* ---------- Small screens (best-effort; not a primary target) ---------- */
+@media (max-width: 900px) {
+  #rightPane {
+    flex-basis: 280px;
+    width: 280px;
+    padding: 16px;
+  }
+}
+@media (max-width: 480px) {
+  .panel {
+    width: calc(100vw - 28px);
+  }
+}

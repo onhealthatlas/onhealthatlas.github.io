@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email your MPP | Ontario Reality Check</title>
+<meta name="description" content="Find your MPP with your postal code and send them a message about access to family doctors, copied to the Premier and the Minister of Health.">
+<meta name="theme-color" content="#A3182B">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="alternate" hreflang="en-CA" href="https://www.YOUR-DOMAIN.ca/email-your-mpp.html">
+<link rel="alternate" hreflang="fr-CA" href="https://www.YOUR-DOMAIN.ca/fr/email-your-mpp.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ontario Reality Check">
+<meta property="og:title" content="Email your MPP">
+<meta property="og:description" content="Find your MPP with your postal code and send them a message about access to family doctors, copied to the Premier and the Minister of Health.">
+<meta property="og:url" content="https://www.YOUR-DOMAIN.ca/email-your-mpp.html">
+<meta property="og:image" content="https://www.YOUR-DOMAIN.ca/assets/img/social-card.png">
+<meta property="og:locale" content="en_CA">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><polygon points="15.60,6.20 15.60,13.80 9.02,17.60 2.44,13.80 2.44,6.20 9.02,2.40" fill="#DE6E7C"/><polygon points="29.56,6.20 29.56,13.80 22.98,17.60 16.40,13.80 16.40,6.20 22.98,2.40" fill="#A3182B"/><polygon points="22.58,18.20 22.58,25.80 16.00,29.60 9.42,25.80 9.42,18.20 16.00,14.40" fill="#650D1B"/></svg><span class="brand-text"><span class="brand-eyebrow">Ontario</span><span class="brand-name">Reality Check</span></span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html#maps">Maps</a>
+      <a href="email-your-mpp.html" aria-current="page">Email your MPP</a>
+      <a href="guide.html">How to use</a>
+      <a href="about.html">About</a>
+      <a class="ext" href="https://www.adilshamji.ca">adilshamji.ca <svg class="ext-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M9 2.5h4.5V7M13.5 2.5 7 9M6 3.5H2.5v10h10V10"/></svg></a>
+    </nav>
+    <a class="lang-switch" href="fr/email-your-mpp.html" lang="fr" hreflang="fr-CA" title="Lire cette page en français">Français</a>
+  </div>
+</header>
+
+<main id="main">
+  <div class="page-head">
+    <div class="wrap">
+      <h1>Email your MPP</h1>
+      <p class="lede">Tell your Member of Provincial Parliament what you think about access to family doctors. Find your MPP with your postal code, check the message, and send it from your own email. It also goes to the Premier and the Minister of Health.</p>
+    </div>
+  </div>
+  <div class="wrap mpp-tool">
+    <div class="tool-main" id="mpp-tool">
+      <section class="tool-step" aria-labelledby="step1">
+        <h2 id="step1"><span class="num" aria-hidden="true">1</span>Find your MPP</h2>
+        <form class="postal-form" id="postal-form" novalidate>
+          <label for="postal">Your postal code</label>
+          <div class="row">
+            <input id="postal" name="postal" type="text" inputmode="text" autocomplete="postal-code" autocapitalize="characters"
+                   spellcheck="false" maxlength="7" placeholder="For example, M3C 1A1" aria-describedby="postal-msg">
+            <button class="btn" type="submit">Find my MPP</button>
+          </div>
+          <p class="field-msg" id="postal-msg" role="alert"></p>
+        </form>
+        <p class="or"><span>or</span></p>
+        <div class="field">
+          <label for="riding">Choose your riding</label>
+          <select id="riding"><option value="">Choose a riding</option></select>
+        </div>
+        <div id="choices" class="choices" hidden></div>
+        <div id="mpp-result" class="mpp-result" tabindex="-1" hidden aria-live="polite"></div>
+        <p class="small-note">Not sure of your riding? The Legislative Assembly can look it up from your street address: <a href="https://www.ola.org/en/members/current">find your MPP on ola.org</a>.</p>
+      </section>
+
+      <div id="compose" hidden>
+        <section class="tool-step" aria-labelledby="step2">
+          <h2 id="step2"><span class="num" aria-hidden="true">2</span>Check your message</h2>
+          <div class="recipients">
+            <div class="rcpt"><span class="rcpt-label">To</span><span id="to-line" class="rcpt-body"></span>
+              <button type="button" class="copy-mini" data-copy="to" aria-label="Copy the MPP’s address">Copy</button></div>
+            <div class="rcpt"><span class="rcpt-label">Copy to</span><div id="cc-list" class="cc-list rcpt-body"></div>
+              <button type="button" class="copy-mini" data-copy="cc" aria-label="Copy the other addresses">Copy</button></div>
+          </div>
+          <div class="field">
+            <label for="sender">Your name</label>
+            <input id="sender" type="text" autocomplete="name" aria-describedby="sender-hint">
+            <p class="hint" id="sender-hint">Added at the end of the message.</p>
+          </div>
+          <div class="field">
+            <label for="subject">Subject</label>
+            <input id="subject" type="text">
+          </div>
+          <div class="field">
+            <label for="message">Message</label>
+            <textarea id="message" rows="16"></textarea>
+          </div>
+          <p><button type="button" class="link-btn" id="reset-message">Go back to the suggested message</button></p>
+        </section>
+
+        <section class="tool-step" aria-labelledby="step3">
+          <h2 id="step3"><span class="num" aria-hidden="true">3</span>Send it</h2>
+          <p><a class="btn" id="mailto" href="#">Open in my email app</a></p>
+          <p class="webmail">Using Gmail, Outlook.com or another email website? Start a new email, then copy the addresses above, the subject and the message into it.</p>
+          <p class="copy-row">
+            <button type="button" class="btn btn-quiet btn-small" data-copy="subject">Copy subject</button>
+            <button type="button" class="btn btn-quiet btn-small" data-copy="message">Copy message</button>
+          </p>
+          <p class="copy-status" role="status" aria-live="polite"></p>
+          <p class="small-note">Nothing you type here is sent to us or saved. The message goes from your own email account, and only when you send it.</p>
+        </section>
+      </div>
+    </div>
+    <aside class="tool-aside">
+      <div class="callout">
+        <p class="callout-title"><strong>Tips for a message that gets read</strong></p>
+        <ul class="tips">
+          <li>Include your postal code. MPPs give priority to the people they represent.</li>
+          <li>Add a sentence or two about your own experience, if you’re comfortable sharing it.</li>
+          <li>Be polite and specific, and ask a question you’d like answered.</li>
+          <li>Keep a copy. If you don’t hear back in a few weeks, follow up.</li>
+        </ul>
+      </div>
+      <h2>Where the numbers come from</h2>
+      <p>The suggested message uses the Ontario total, and the share of family doctors in your riding who are 60 or older, from the map <a href="maps/family-doctor-shortage/">The family doctor shortage, 2026</a>. Riding figures are estimates built from municipal figures in the Ontario Rostering Physician and Patient Counts Report, January 2026.</p>
+      <p>Your riding is found from the first three characters of your postal code, using where people lived in the 2021 Census. Where those three characters cover more than one riding, you choose yours.</p>
+    </aside>
+  </div>
+</main>
+<section class="updates" id="updates" aria-labelledby="updates-title">
+  <div class="wrap">
+    <div>
+      <h2 id="updates-title">Get updates</h2>
+      <p>We’ll email you when a new map is released, and now and then with news about the site.</p>
+    </div>
+    <!-- Sign-up form: not connected to a mailing service yet. See README.md, "Connecting the sign-up form". -->
+    <form class="updates-form" data-signup data-endpoint="" data-field="email" novalidate>
+      <label for="updates-email">Email address</label>
+      <div class="row">
+        <input id="updates-email" name="email" type="email" autocomplete="email" placeholder="name@example.com" required>
+        <button class="btn" type="submit">Sign up</button>
+      </div>
+      <label class="consent"><input type="checkbox" name="consent" required><span>Yes, send me email updates about Ontario Reality Check from the office of Dr. Adil Shamji, MPP. I can unsubscribe at any time.</span></label>
+      <p class="fine">We’ll use your address only for these updates. Every email has a link to unsubscribe.</p>
+      <p class="form-status" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="index.html"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><polygon points="15.60,6.20 15.60,13.80 9.02,17.60 2.44,13.80 2.44,6.20 9.02,2.40" fill="#DE6E7C"/><polygon points="29.56,6.20 29.56,13.80 22.98,17.60 16.40,13.80 16.40,6.20 22.98,2.40" fill="#A3182B"/><polygon points="22.58,18.20 22.58,25.80 16.00,29.60 9.42,25.80 9.42,18.20 16.00,14.40" fill="#650D1B"/></svg><span class="brand-text"><span class="brand-eyebrow">Ontario</span><span class="brand-name">Reality Check</span></span></a>
+        <p class="footer-byline">From the office of Dr. Adil Shamji, MPP for Don Valley East</p>
+        <p>Ontario Reality Check maps housing and health care across the province using public data. It is produced by the office of Dr. Adil Shamji, MPP for Don Valley East, and is not a Government of Ontario website.</p>
+      </div>
+      <div>
+        <h2>Explore</h2>
+        <ul>
+          <li><a href="index.html#maps">All maps</a></li>
+          <li><a href="email-your-mpp.html">Email your MPP</a></li>
+          <li><a href="guide.html">How to use the maps</a></li>
+          <li><a href="about.html">About this project</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Dr. Adil Shamji</h2>
+        <ul>
+          <li><a href="https://www.adilshamji.ca">adilshamji.ca <svg class="ext-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M9 2.5h4.5V7M13.5 2.5 7 9M6 3.5H2.5v10h10V10"/></svg></a></li>
+          <li><a href="about.html#contact">Contact the office</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-legal">Data from Canada Mortgage and Housing Corporation, Statistics Canada and provincial health sources. Each map lists its source. Maps may not reflect data released after they were made.</p>
+  </div>
+</footer>
+<script src="assets/js/site.js"></script>
+<script src="assets/data/mpps.js"></script>
+<script src="assets/js/email-mpp.js"></script>
+</body>
+</html>

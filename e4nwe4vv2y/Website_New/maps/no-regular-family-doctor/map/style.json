@@ -6313,7 +6313,10 @@
         ["match", ["geometry-type"], ["MultiPolygon", "Polygon"], true, false],
         ["==", ["get", "subclass"], "ice_shelf"]
       ],
-      "paint": {"fill-color": "rgb(233, 235, 236)"}
+      "paint": {
+        "fill-antialias": false,
+        "fill-color": ["interpolate", ["linear"], ["zoom"], 0, "rgb(250, 250, 250)", 8, "rgb(246, 246, 245)"]
+      }
     },
     {
       "id": "landcover_glacier",

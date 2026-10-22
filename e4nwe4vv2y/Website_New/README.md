@@ -34,7 +34,7 @@ maps/
 
 Every English page has a French twin at the same place under `fr/`. The **Français / English** button in the top bar switches between the two. If you change the text of a page, change its twin too.
 
-The French page for a map loads the same map with `?lang=fr` (for example `../../../maps/family-doctor-shortage/map/?lang=fr`), so the map opens in French. The two family doctor maps and the two older housing maps (core housing need, mortgages) follow this. The other maps are still placeholders and show a French "coming soon" message.
+The French page for a map loads the same map with `?lang=fr` (for example `../../../maps/family-doctor-shortage/map/?lang=fr`), so the map opens in French. The two family doctor maps, the housing need map and the older mortgage map follow this. The other maps are still placeholders and show a French "coming soon" message.
 
 The French name of the site is **L’Ontario à l’épreuve des faits**, shown as a small "Ontario" above **L’épreuve des faits**.
 
@@ -142,7 +142,7 @@ The 404 page uses links that start with `/`, so it looks right only once the sit
 |---|---|---|
 | `family-doctor-shortage` | The family doctor shortage, 2026 | The family doctor shortage, provincial riding and census subdivision (CSD), Ontario, January 1, 2026 |
 | `no-regular-family-doctor` | People without a regular family doctor | People without a regular family doctor, provincial riding and forward sortation area (FSA), Ontario, 2020 and 2022 |
-| `core-housing-need` | Households in core housing need | Incidence of households in core housing need, census metropolitan area (CMA), Ontario, 2018–2024 |
+| `core-housing-need` | Struggling to afford a decent home | Households in core housing need: provincial riding and census subdivision (CSD), Ontario, 2021 Census; census metropolitan area (CMA), Ontario, 2018–2024 (Canadian Income Survey) |
 | `mortgage-payments` | Mortgage payments and loan sizes | Average monthly mortgage payment and new mortgage loan value, census metropolitan area (CMA), Ontario, 2012–2025 quarterly |
 | `new-home-prices` | New home prices | Average price for single, semi-detached, and row units by census subdivision (CSD) over 50,000 population, Ontario, 2023 |
 | `new-homes-sold-by-price` | New homes sold, by price | Sold newly built units (single, semi, row, apartment, other) by price range, census agglomeration (CA) over 50,000 population, Ontario, Q1–Q2 2026 |

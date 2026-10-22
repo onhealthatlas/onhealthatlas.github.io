@@ -1571,8 +1571,10 @@
         const water = map.getStyle().layers.find((l) => l.id === "water");
         if (water) map.addLayer({ ...water, id: "water-over-data" }, before);
         // Ice shelves lie over the sea (zoomed out, the ocean is drawn underneath them, as around Antarctica), so the
-        // water copy would hide them. Move the basemap's ice shelf layer up above it. Nothing in the data is near one.
-        if (map.getLayer("landcover_ice_shelf")) map.moveLayer("landcover_ice_shelf", before);
+        // water copy would hide them, and its soft edge would leave a thin grey line where the shelves meet the land ice.
+        // So the basemap's ice shelves and land ice (glaciers) move up above it, in the basemap's own order.
+        // Nothing in the data is near either.
+        for (const id of ["landcover_ice_shelf", "landcover_glacier"]) if (map.getLayer(id)) map.moveLayer(id, before);
       }
       const fillsBefore = map.getLayer("water-over-data") ? "water-over-data" : before;
       map.addLayer({ id: `${layer}-fill`, type: "fill", source: layer, layout: vis,

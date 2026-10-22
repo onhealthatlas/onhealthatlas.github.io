@@ -197,12 +197,6 @@
     #legend .lg-desc { margin: 9px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-2); }
     .sw-nodata { background: #e6e7e3; box-shadow: inset 0 0 0 1px #cfd2cc; }
     .sw-na { background: repeating-linear-gradient(135deg, #7d858f 0 1.6px, #e6e7e3 1.6px 5px); box-shadow: inset 0 0 0 1px #cfd2cc; }
-    /* use with caution: white dots over a mid shade (the same dots as on the map) */
-    .sw-dots, .sw-mini, .hbar .fill.caution {
-      background-image: radial-gradient(circle, rgba(255, 255, 255, 0.92) 1.1px, transparent 1.5px);
-      background-size: 5px 5px;
-    }
-    .sw-dots { background-color: #305d92; }
     .seg.years button { padding: 6px 1px; font-size: 12px; letter-spacing: -0.01em; }
 
     /* ---- Popup ---- */
@@ -272,8 +266,8 @@
     .hbar .val { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
     .hbar .val span { color: var(--muted); font-weight: 400; }
     .hbar .track.na { font-size: 12.5px; color: var(--muted); }
-    .bar-key { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
-    .bar-key .sw-mini { flex: none; width: 18px; height: 10px; border-radius: 2px; background-color: #245eac; }
+    .bar-key { margin: 8px 0 0; font-size: 12px; line-height: 1.45; color: var(--muted); }
+    table.all td.num .np { color: var(--muted); font-weight: 400; }
     .sub-note { margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
     .block .note { margin-top: 10px; }
     .grp-name { font-size: 13px; font-weight: 700; color: var(--ink); }
@@ -1196,17 +1190,15 @@
           surveyCount: (y) => `The number of homes in the metro area in housing need in ${y}, to the nearest 1,000. From Statistics Canada’s yearly income survey.`,
         },
         under: (v) => `Under ${v}`, orMore: (v) => `${v} or more`, range: (a, b) => `${a} – ${b}`, exactly: (v) => `${v}`,
-        legendCaution: "Use with caution (small sample)",
-        legendNA: "Not available, or too unreliable to show",
+        legendNA: "Not available",
         legendReserve: "First Nations reserves: not covered",
         legendCA: "Smaller cities: one combined figure (see details)",
         // popup
         ppPct: (w, src) => `of ${w} in housing need, ${src}`,
         ppNum: (w, src) => `${w} in housing need, ${src}`,
-        ppTooUncertain: "Too uncertain to show",
         ppNA: "Not available",
         ppCaution: (lo, hi) => (lo == null ? "Use with caution: small sample." : `Use with caution: small sample (likely ${lo} to ${hi}).`),
-        ppUnreliable: (lo, hi) => (lo == null ? "Too uncertain to show: small sample." : `Too uncertain to show: small sample (likely anywhere from ${lo} to ${hi}).`),
+        ppUnreliable: (lo, hi) => (lo == null ? "Very uncertain: very small sample. Treat with great caution." : `Very uncertain: very small sample (the true figure could be anywhere from ${lo} to ${hi}). Treat with great caution.`),
         ppZero: "Use with caution: none turned up in the census sample, but with so few homes sampled, some may be in need.",
         ppEst: "Built from municipal figures.",
         ppTenureEst: "Riding numbers of renters and owners are worked out from Statistics Canada’s percentages.",
@@ -1241,19 +1233,18 @@
         bMetros: (y) => `Metro areas, ${y}`,
         allSmallCities: "All smaller cities combined",
         notPublished: "Not published",
-        cautionKey: "Dotted: use with caution (small sample)",
+        cautionList: (items) => `Use with caution (small sample): ${items}.`,
         bCA: "All of Ontario’s smaller cities combined, 2018 to 2024",
         allFigures: "Show all figures as a table",
         rowsCensus: { inNeed: "In housing need", examined: "Homes counted" },
-        rowsSurvey: { pct: "Share", num: "Homes", grade: "Reliability" },
-        grades: { a: "Excellent", b: "Very good", c: "Good", d: "Acceptable", e: "Use with caution", f: "Not published" },
+        rowsSurvey: { pct: "Share", num: "Homes" },
         notes: {
           est: "Statistics Canada doesn’t publish figures for this riding’s boundaries, so they’re built from its figures for the municipalities in it. Where a municipality is split between ridings, it’s divided the way the census’s smallest areas inside it are.",
           res: (p) => `${p} of homes in this riding are on First Nations reserves. Statistics Canada’s housing need measure doesn’t cover reserves, so these figures are for the rest of the riding.`,
           reserve: (n) => `${n} is a First Nations reserve or settlement. Statistics Canada’s housing need measure doesn’t cover reserves.`,
           na: (n) => `Statistics Canada didn’t publish housing need figures for ${n}: it doesn’t for places with very few homes, or where too few people answered.`,
           caution: (lo, hi) => `Use with caution: the census sample here is small${lo == null ? "" : `, so the true figure is likely between ${lo} and ${hi}`}.`,
-          unreliable: (lo, hi) => `Too uncertain to show: the census sample here is so small that the true figure could be anywhere${lo == null ? "" : ` from ${lo} to ${hi}`}.`,
+          unreliable: (lo, hi) => `Very uncertain: the census sample here is so small that the true figure could be anywhere${lo == null ? "" : ` from ${lo} to ${hi}`}. Treat it with great caution.`,
           zero: "Use with caution: no homes in housing need turned up in the census sample here, but with so few homes sampled, some may be in need.",
           ottawa: "This figure is for the whole Ottawa–Gatineau metro area, including Gatineau in Quebec. Statistics Canada doesn’t publish the Ontario part on its own.",
           belleville: "Until 2020, this metro area was Belleville alone; from 2021, it’s Belleville–Quinte West.",
@@ -1266,7 +1257,7 @@
           "<b>By riding and by municipality:</b> the 2021 Census, the most recent figures for small areas. The census asked about incomes in 2020, when temporary pandemic benefits raised many low incomes, so it shows less housing need than the years before and after (Statistics Canada, <i>The Daily</i>, January 23, 2023).",
           "Ontario’s 111 southern ridings have the same boundaries as the federal ridings Statistics Canada reports on (2013 boundaries), so their figures are Statistics Canada’s own. Its numbers of renters and owners in housing need for them are worked out from its percentages. The 13 northern ridings are built from Statistics Canada’s figures for their municipalities; a municipality split between ridings (Greater Sudbury, Thunder Bay, French River and a few unorganized areas) is divided the way the census’s smallest areas inside it are.",
           "<b>By metro area:</b> Statistics Canada’s Canadian Income Survey, every year from 2018 to 2024, as published by CMHC. It covers Ontario’s 16 metro areas (census metropolitan areas) and Ontario as a whole; for smaller cities (census agglomerations), only one figure for all of them combined is published. Numbers of homes are rounded to the nearest 1,000. The Ottawa–Gatineau figure includes Gatineau, in Quebec. 2018 to 2020 use the 2016 metro boundaries, and 2021 to 2024 the 2021 boundaries.",
-          "<b>Reliability:</b> both sources are based on samples. The map marks figures that Statistics Canada grades “use with caution” with dots, and leaves out those too unreliable to publish. Census figures are graded the same way from their margins of error: dots where the margin is large (a coefficient of variation from 16% to 33.3%), and left out where it’s larger still. Many small municipalities have dots or no figures for this reason.",
+          "<b>Reliability:</b> both sources are based on samples. Where Statistics Canada grades a yearly survey figure “use with caution”, an area’s details say so; figures it considers too unreliable to publish are left out. Census figures get the same kind of notes from their margins of error: “use with caution” where the margin is large (a coefficient of variation from 16% to 33.3%), and “very uncertain” where it’s larger still. Statistics Canada publishes those census figures, so the map shows them, but they would be too unreliable to publish under the yearly survey’s rules. Many small municipalities have these notes.",
           "<b>Not covered:</b> homes on First Nations reserves and on farms, and homes with no income or with housing costs as high as their income. Students aged 15 to 29 living on their own or with roommates are counted as not in housing need.",
           "The two sources measure housing need the same way but count it differently, so their figures don’t match exactly: for Ontario in 2021, the census found 12.1% and the yearly survey 13.9%.",
           "<b>Sources:</b> Statistics Canada, 2021 Census of Population, Census Profile and table 98-10-0247-01; Statistics Canada, Canadian Income Survey, 2018 to 2024, via CMHC, “Core Housing Need, by Incidence and Number of Households, 2018 to 2024”. Boundaries: Elections Ontario; Statistics Canada.",
@@ -1301,16 +1292,14 @@
           surveyCount: (y) => `Nombre de ménages de la région métropolitaine ayant des besoins impérieux en ${y}, arrondi au millier près. Selon l’enquête annuelle de Statistique Canada sur le revenu.`,
         },
         under: (v) => `Moins de ${v}`, orMore: (v) => `${v} ou plus`, range: (a, b) => `${a} – ${b}`, exactly: (v) => `${v}`,
-        legendCaution: "À utiliser avec prudence (petit échantillon)",
-        legendNA: "Non disponible, ou trop peu fiable pour être affiché",
+        legendNA: "Non disponible",
         legendReserve: "Réserves des Premières Nations : non couvertes",
         legendCA: "Agglomérations : un seul chiffre global (voir les détails)",
         ppPct: (w, src) => `des ${w} ayant des besoins impérieux en matière de logement, ${src}`,
         ppNum: (w, src) => `${w} ayant des besoins impérieux en matière de logement, ${src}`,
-        ppTooUncertain: "Trop incertain pour être affiché",
         ppNA: "Non disponible",
         ppCaution: (lo, hi) => (lo == null ? "À utiliser avec prudence : petit échantillon." : `À utiliser avec prudence : petit échantillon (probablement de ${lo} à ${hi}).`),
-        ppUnreliable: (lo, hi) => (lo == null ? "Trop incertain pour être affiché : petit échantillon." : `Trop incertain pour être affiché : petit échantillon (n’importe où entre ${lo} et ${hi}).`),
+        ppUnreliable: (lo, hi) => (lo == null ? "Très incertain : très petit échantillon. À utiliser avec une grande prudence." : `Très incertain : très petit échantillon (la valeur réelle pourrait se situer n’importe où entre ${lo} et ${hi}). À utiliser avec une grande prudence.`),
         ppZero: "À utiliser avec prudence : aucun cas dans l’échantillon du recensement, mais vu le petit nombre de ménages échantillonnés, il peut y en avoir.",
         ppEst: "Établi à partir des chiffres des municipalités.",
         ppTenureEst: "Pour les circonscriptions, les nombres de locataires et de propriétaires sont calculés à partir des pourcentages de Statistique Canada.",
@@ -1344,19 +1333,18 @@
         bMetros: (y) => `Régions métropolitaines, ${y}`,
         allSmallCities: "Ensemble des agglomérations",
         notPublished: "Non publié",
-        cautionKey: "Pointillé : à utiliser avec prudence (petit échantillon)",
+        cautionList: (items) => `À utiliser avec prudence (petit échantillon) : ${items}.`,
         bCA: "Ensemble des agglomérations de l’Ontario, 2018 à 2024",
         allFigures: "Afficher tous les chiffres sous forme de tableau",
         rowsCensus: { inNeed: "Besoins impérieux", examined: "Ménages comptés" },
-        rowsSurvey: { pct: "Proportion", num: "Ménages", grade: "Fiabilité" },
-        grades: { a: "Excellente", b: "Très bonne", c: "Bonne", d: "Acceptable", e: "À utiliser avec prudence", f: "Non publié" },
+        rowsSurvey: { pct: "Proportion", num: "Ménages" },
         notes: {
           est: "Statistique Canada ne publie pas de chiffres selon les limites de cette circonscription; ils sont donc établis à partir de ses chiffres pour les municipalités qui la composent. Une municipalité partagée entre des circonscriptions est répartie selon les plus petits secteurs du recensement qu’elle contient.",
           res: (p) => `${p} des ménages de cette circonscription vivent dans des réserves des Premières Nations. La mesure des besoins impérieux de Statistique Canada ne couvre pas les réserves; ces chiffres portent donc sur le reste de la circonscription.`,
           reserve: (n) => `${n} est une réserve ou un établissement des Premières Nations. La mesure des besoins impérieux de Statistique Canada ne couvre pas les réserves.`,
           na: (n) => `Statistique Canada n’a pas publié de chiffres sur les besoins impérieux pour ${n} : il ne le fait pas pour les endroits qui comptent très peu de ménages, ou lorsque trop peu de personnes ont répondu.`,
           caution: (lo, hi) => `À utiliser avec prudence : l’échantillon du recensement est petit ici${lo == null ? "" : `; la valeur réelle se situe probablement entre ${lo} et ${hi}`}.`,
-          unreliable: (lo, hi) => `Trop incertain pour être affiché : l’échantillon du recensement est si petit ici que la valeur réelle pourrait se situer n’importe où${lo == null ? "" : ` entre ${lo} et ${hi}`}.`,
+          unreliable: (lo, hi) => `Très incertain : l’échantillon du recensement est si petit ici que la valeur réelle pourrait se situer n’importe où${lo == null ? "" : ` entre ${lo} et ${hi}`}. À utiliser avec une grande prudence.`,
           zero: "À utiliser avec prudence : aucun ménage ayant des besoins impérieux n’est ressorti de l’échantillon du recensement ici, mais vu le petit nombre de ménages échantillonnés, il peut y en avoir.",
           ottawa: "Ce chiffre porte sur toute la région métropolitaine d’Ottawa–Gatineau, y compris Gatineau, au Québec. Statistique Canada ne publie pas de chiffre pour la partie ontarienne seule.",
           belleville: "Jusqu’en 2020, cette région métropolitaine correspondait à Belleville seulement; depuis 2021, elle s’appelle Belleville–Quinte West.",
@@ -1369,7 +1357,7 @@
           "<b>Par circonscription et par municipalité</b> : Recensement de 2021, les chiffres les plus récents pour les petits territoires. Le recensement portait sur les revenus de 2020, alors que des prestations temporaires liées à la pandémie avaient fait augmenter de nombreux faibles revenus; il montre donc moins de besoins impérieux que les années précédentes et suivantes (Statistique Canada, <i>Le Quotidien</i>, 23 janvier 2023).",
           "Les 111 circonscriptions du Sud de l’Ontario ont les mêmes limites que les circonscriptions fédérales pour lesquelles Statistique Canada publie des chiffres (limites de 2013); ce sont donc les chiffres de Statistique Canada. Les nombres de locataires et de propriétaires ayant des besoins impérieux y sont calculés à partir de ses pourcentages. Les 13 circonscriptions du Nord sont établies à partir des chiffres de Statistique Canada pour leurs municipalités; une municipalité partagée entre des circonscriptions (Grand Sudbury, Thunder Bay, Rivière des Français et quelques territoires non organisés) est répartie selon les plus petits secteurs du recensement qu’elle contient.",
           "<b>Par région métropolitaine</b> : Enquête canadienne sur le revenu de Statistique Canada, chaque année de 2018 à 2024, publiée par la SCHL. Elle couvre les 16 régions métropolitaines de l’Ontario (régions métropolitaines de recensement) et l’ensemble de la province; pour les agglomérations de recensement, un seul chiffre global est publié. Les nombres de ménages sont arrondis au millier près. Le chiffre d’Ottawa–Gatineau comprend Gatineau, au Québec. Les années 2018 à 2020 suivent les limites métropolitaines de 2016, et 2021 à 2024 celles de 2021.",
-          "<b>Fiabilité</b> : les deux sources reposent sur des échantillons. La carte marque de points les chiffres que Statistique Canada juge « à utiliser avec prudence » et omet ceux qui sont trop peu fiables pour être publiés. Les chiffres du recensement sont évalués de la même façon à partir de leur marge d’erreur : des points lorsque la marge est grande (coefficient de variation de 16 % à 33,3 %), et aucun chiffre lorsqu’elle est plus grande encore. C’est pourquoi de nombreuses petites municipalités ont des points ou aucun chiffre.",
+          "<b>Fiabilité</b> : les deux sources reposent sur des échantillons. Lorsque Statistique Canada juge un chiffre de l’enquête annuelle « à utiliser avec prudence », les détails du territoire l’indiquent; les chiffres qu’il juge trop peu fiables pour être publiés sont omis. Les chiffres du recensement reçoivent le même type de mise en garde selon leur marge d’erreur : « à utiliser avec prudence » lorsque la marge est grande (coefficient de variation de 16 % à 33,3 %), et « très incertain » lorsqu’elle est plus grande encore. Statistique Canada publie ces chiffres du recensement et la carte les affiche donc, mais selon les règles de l’enquête annuelle, ils seraient trop peu fiables pour être publiés. De nombreuses petites municipalités ont ces mises en garde.",
           "<b>Non couverts</b> : les ménages vivant dans des réserves des Premières Nations ou sur des fermes, et les ménages sans revenu ou dont les frais de logement égalent ou dépassent leur revenu. Les étudiants de 15 à 29 ans qui vivent seuls ou avec des colocataires sont considérés comme n’ayant pas de besoins impérieux.",
           "Les deux sources mesurent les besoins impérieux de la même façon, mais les comptent différemment; leurs chiffres ne concordent donc pas exactement : pour l’Ontario en 2021, le recensement donne 12,1 % et l’enquête annuelle 13,9 %.",
           "<b>Sources</b> : Statistique Canada, Recensement de la population de 2021, Profil du recensement et tableau 98-10-0247-01; Statistique Canada, Enquête canadienne sur le revenu, 2018 à 2024, publiée par la SCHL, « Core Housing Need, by Incidence and Number of Households, 2018 to 2024 ». Limites : Élections Ontario; Statistique Canada.",
@@ -1397,12 +1385,15 @@
       survey: YEARS.flatMap((y) => [`y${y}_rate`, `y${y}_count`]),
     };
     const metricsFor = (layer) => (isSurvey(layer) ? METRICS.survey : METRICS.census);
-    // Shades from least to most severe: the steel blues of the family doctor maps, with one lighter step added at
-    // the start so that one scale fits renters (often 25% or more) and owners (often under 5%) alike. Shares use
-    // the same fixed steps everywhere (every view, group and year), so all of them can be compared directly.
-    const RAMP = ["#6d9fd0", "#407eb7", "#305d92", "#203e6b", "#122342", "#070c17"];
+    // Shades from least to most severe: the same five muted steel blues as the family doctor maps, from a mid-blue
+    // (no shade reads as "fine") to near-black. Shares use fixed steps, set for each group so that every view has
+    // plenty of dark areas: the darkest is 1 home in 5 or more for everyone (and on the metro map, every year), 30% or
+    // more for renters and 10% or more for owners. The steps are the same for ridings, municipalities and every year,
+    // so those can be compared directly; the legend always gives them.
+    const RAMP = ["#407eb7", "#305d92", "#203e6b", "#122342", "#070c17"];
     const NODATA_COLOR = "#e6e7e3";
-    const PCT_BREAKS = [5, 10, 15, 20, 25];
+    const CA_COLOR = "#b2aa9c";   // smaller cities on the metro map: a warm grey, set apart from the water and the blues
+    const PCT_BREAKS = { a: [7.5, 10, 15, 20], r: [15, 20, 25, 30], o: [3, 5, 7.5, 10] };
 
     const series = (s) => YEARS.map((y, i) => ({ y, p: s[i][0], pg: s[i][1], n: s[i][2], ng: s[i][3] }));
     // All derived figures for one area. layer: "ped" (riding), "csd" (municipality), "cma" (metro area).
@@ -1422,7 +1413,7 @@
       WHO.forEach((w, i) => {
         const v = rec[w];
         d.g[w] = v ? { n: v[0], p: v[1], rel: v[2], lo: v[3] ?? null, hi: v[4] ?? null, hh: rec.u[i] ?? null } : null;
-        if (v && v[2] < 2) {   // too unreliable (2): not shown
+        if (v) {   // shown whatever its reliability; the popup and details say how far to trust it
           d[`${w}_rate`] = v[1]; d[`${w}_count`] = v[0];
           d[`rel_${w}_rate`] = d[`rel_${w}_count`] = v[2];
         }
@@ -1484,7 +1475,7 @@
     const classCache = {};
     function classesFor(layer, metric) {
       const kind = kindOf(metric);
-      if (kind === "pct") return { breaks: PCT_BREAKS, colors: RAMP.slice() };
+      if (kind === "pct") return { breaks: PCT_BREAKS[isSurvey(layer) ? "a" : metric[0]], colors: RAMP.slice() };
       const ck = isSurvey(layer) ? `${layer}|count` : `${layer}|${metric}`;
       if (classCache[ck]) return classCache[ck];
       const pool = isSurvey(layer) ? METRICS.survey.filter((m) => m.endsWith("_count")) : [metric];
@@ -1536,7 +1527,7 @@
       const { breaks, colors } = classesFor(layer, metric);
       const step = ["step", ["to-number", ["get", metric]], colors[0]];
       breaks.forEach((b, i) => step.push(b, colors[i + 1]));
-      return ["case", ["has", metric], step, NODATA_COLOR];
+      return ["case", ["has", metric], step, ["==", ["get", "status"], "ca"], CA_COLOR, NODATA_COLOR];
     }
 
     function hatchImage() {      // diagonal lines: no figure (not published, or too unreliable)
@@ -1546,14 +1537,6 @@
       g.fillStyle = NODATA_COLOR; g.fillRect(0, 0, size, size);
       g.strokeStyle = "#7d858f"; g.lineWidth = 2.2;
       for (const o of [-size, 0, size]) { g.beginPath(); g.moveTo(o, size); g.lineTo(o + size, 0); g.stroke(); }
-      return g.getImageData(0, 0, size, size);
-    }
-    function dotsImage() {       // white dots over the shade: use with caution
-      const size = 12, c = document.createElement("canvas");
-      c.width = c.height = size;
-      const g = c.getContext("2d");
-      g.fillStyle = "rgba(255, 255, 255, 0.92)";
-      for (const [x, y] of [[3, 3], [9, 9]]) { g.beginPath(); g.arc(x, y, 1.7, 0, 2 * Math.PI); g.fill(); }
       return g.getImageData(0, 0, size, size);
     }
 
@@ -1581,8 +1564,6 @@
         paint: { "fill-color": NODATA_COLOR, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 8, 1, 10, 0.86, 12, 0.74, 15, 0.6] } }, fillsBefore);   // solid when zoomed out, so the dark shades stay distinct
       map.addLayer({ id: `${layer}-hatch`, type: "fill", source: layer, layout: vis,
         filter: ["literal", false], paint: { "fill-pattern": "chn-hatch", "fill-opacity": 0.9 } }, fillsBefore);
-      map.addLayer({ id: `${layer}-dots`, type: "fill", source: layer, layout: vis,
-        filter: ["literal", false], paint: { "fill-pattern": "chn-dots", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 8, 1, 12, 0.8] } }, fillsBefore);
       const [w4, w8] = LINE_WIDTH[layer];
       map.addLayer({ id: `${layer}-line`, type: "line", source: layer, layout: { ...vis, "line-join": "round" },
         paint: { "line-color": "#ffffff", "line-opacity": 0.8, "line-width": ["interpolate", ["linear"], ["zoom"], 4, w4, 8, w8, 12, 1.8] } }, before);
@@ -1613,14 +1594,13 @@
       if (id != null) map.setFeatureState({ source: state.layer, id }, { hover: true });
     }
 
-    const PARTS = ["fill", "hatch", "dots", "line", "hover", "sel-casing", "sel"];
+    const PARTS = ["fill", "hatch", "line", "hover", "sel-casing", "sel"];
     function updateMapStyle() {
       const layer = state.layer, metric = metricKey();
       if (SRC[layer] && map.getLayer(`${layer}-fill`)) {
         map.setPaintProperty(`${layer}-fill`, "fill-color", fillExpression(layer, metric));
         // hatched: no figure to show (not published, or too unreliable); reserves and smaller cities stay plain grey
         map.setFilter(`${layer}-hatch`, ["all", ["in", ["get", "status"], ["literal", ["ok", "na"]]], ["!", ["has", metric]]]);
-        map.setFilter(`${layer}-dots`, ["==", ["get", `rel_${metric}`], 1]);
       }
       for (const l of LAYERS) {
         if (!map.getLayer(`${l}-fill`)) continue;
@@ -1676,11 +1656,10 @@
       const rows = cls.colors.map((c, i) => ({ c, label: legendLabel(i, cls, kind) })).reverse();   // darkest (worst) first
       const all = allDerived(layer).filter((d) => d.status === "ok");
       let extra = "";
-      if (all.some((d) => d[`rel_${metric}`] === 1)) extra += `<div class="lg-row"><span class="sw sw-dots"></span>${esc(x.legendCaution)}</div>`;
       const anyNA = all.some((d) => d[metric] == null) || (SRC[layer] ? [...byId[layer].values()].some(({ d }) => d.status === "na") : layer === "csd");
       if (anyNA) extra += `<div class="lg-row"><span class="sw sw-na"></span>${esc(x.legendNA)}</div>`;
       if (layer === "csd") extra += `<div class="lg-row"><span class="sw sw-nodata"></span>${esc(x.legendReserve)}</div>`;
-      if (layer === "cma") extra += `<div class="lg-row"><span class="sw sw-nodata"></span>${esc(x.legendCA)}</div>`;
+      if (layer === "cma") extra += `<div class="lg-row"><span class="sw" style="background:${CA_COLOR}"></span>${esc(x.legendCA)}</div>`;
       const w = x.whoNoun[isSurvey(layer) ? "a" : state.who];
       const src = isSurvey(layer) ? x.surveyYear(state.year) : x.census;
       const title = state.mode === "rate" ? x.lgTitle.rate(w, src) : x.lgTitle.count(w, src);
@@ -1707,6 +1686,7 @@
       if (["IRI", "S-É", "NO"].includes(entry.nm.type)) return type;   // reserves and unorganized areas aren't municipalities
       return type && type !== x.municipality ? `${x.municipality} · ${type}` : x.municipality;
     }
+    const listJoin = (items) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} ${t().and} ${items[items.length - 1]}`);
     const metroName = (uid) => (DATA.cmaInfo[uid] ? DATA.cmaInfo[uid][L === "fr" ? 1 : 0] : uid);
 
     // The reliability note for a census figure (group g), or "".
@@ -1753,7 +1733,7 @@
           html += `<div class="pp-main"><div class="pp-big">${esc(state.mode === "rate" ? pct(big) : num(big))}</div><div class="pp-mlbl"><b>${esc(label)}</b>${other ? `<br>${esc(other)}` : ""}</div></div>`;
           if ((state.mode === "rate" ? v.pg : v.ng) === "e") foot.push(x.ppCaution(null));
         } else {
-          html += `<div class="pp-main"><div class="pp-mlbl"><b>${esc(state.mode === "rate" ? x.ppPct(w, src) : x.ppNum(w, src))}</b><br>${esc(x.ppGradeF)}</div></div>`;
+          html += `<div class="pp-main"><div class="pp-mlbl"><b>${esc(state.mode === "rate" ? x.lgTitle.rate(w, src) : x.lgTitle.count(w, src))}</b><br>${esc(x.ppGradeF)}</div></div>`;
           if (state.mode === "count" && v.p != null) {   // the number isn't published, but the share is
             html += `<div class="pp-rows"><div class="pp-row"><span>${esc(x.ppShare(src))}</span><b>${esc(pct(v.p))}</b></div></div>`;
             if (v.pg === "e") foot.push(x.ppCaution(null));
@@ -1764,19 +1744,20 @@
       } else {
         const g = d.g[state.who], w = x.whoNoun[state.who];
         const label = state.mode === "rate" ? x.ppPct(w, x.census) : x.ppNum(w, x.census);
-        if (g && g.rel < 2) {
+        if (g) {
           const big = state.mode === "rate" ? pct(g.p) : num(g.n);
           const other = state.mode === "rate" ? `${num(g.n)} ${x.homes}` : pct(g.p);
           html += `<div class="pp-main"><div class="pp-big">${esc(big)}</div><div class="pp-mlbl"><b>${esc(label)}</b><br>${esc(other)}</div></div>`;
         } else {
-          html += `<div class="pp-main"><div class="pp-mlbl"><b>${esc(label)}</b><br>${esc(g ? x.ppTooUncertain : x.ppNA)}</div></div>`;
+          const full = state.mode === "rate" ? x.lgTitle.rate(w, x.census) : x.lgTitle.count(w, x.census);   // no figure beside it
+          html += `<div class="pp-main"><div class="pp-mlbl"><b>${esc(full)}</b><br>${esc(x.ppNA)}</div></div>`;
         }
         if (g) { const r = relNote(g, true); if (r) foot.push(r); }
         html += `<div class="pp-rows">`;
         for (const o of WHO) {
           if (o === state.who) continue;
           const h = d.g[o];
-          html += `<div class="pp-row"><span>${esc(x.whoName[o])}</span><b>${esc(!h ? "–" : h.rel === 2 ? x.ppTooUncertain : `${pct(h.p)} · ${num(h.n)}`)}</b></div>`;
+          html += `<div class="pp-row"><span>${esc(x.whoName[o])}</span><b>${esc(!h ? "–" : `${pct(h.p)} · ${num(h.n)}`)}</b></div>`;
         }
         html += `</div>`;
         if (d.est) foot.push(x.ppEst);
@@ -1811,9 +1792,12 @@
       const aria = rows.map((r) => `${r.label}: ${r.rate == null ? r.na : `${pct(r.rate)}${r.count ? `, ${r.count}` : ""}`}`).join("; ");
       return `<div class="hbars"${labelWidth ? ` style="--lab:${labelWidth}"` : ""} role="img" aria-label="${esc(aria)}">${rows.map((r) => r.rate == null
         ? `<div class="hbar${r.strong ? " strong" : ""}"><span class="lab">${esc(r.label)}</span><span class="track na">${esc(r.na)}</span></div>`
-        : `<div class="hbar${r.strong ? " strong" : ""}"><span class="lab">${esc(r.label)}</span><span class="track"><span class="fill${r.caution ? " caution" : ""}" style="width:${Math.max(1, (r.rate / max) * 62)}%;background-color:${r.color}"></span><span class="val">${pct(r.rate)}${r.count ? ` <span>· ${esc(r.count)}</span>` : ""}</span></span></div>`).join("")}</div>`;
+        : `<div class="hbar${r.strong ? " strong" : ""}"><span class="lab">${esc(r.label)}</span><span class="track"><span class="fill" style="width:${Math.max(1, (r.rate / max) * 62)}%;background-color:${r.color}"></span><span class="val">${pct(r.rate)}${r.count ? ` <span>· ${esc(r.count)}</span>` : ""}</span></span></div>`).join("")}</div>`;
     }
-    const cautionKey = (rows) => (rows.some((r) => r.caution) ? `<div class="bar-key"><span class="sw-mini"></span>${esc(t().cautionKey)}</div>` : "");
+    const cautionKey = (rows) => {
+      const list = rows.filter((r) => r.caution && r.rate != null).map((r) => r.label);
+      return list.length ? `<p class="bar-key">${esc(t().cautionList(listJoin(list)))}</p>` : "";
+    };
     // A survey series as bars, one per year
     function seriesRows(s, color = BAR.main) {
       return s.map((v) => ({ label: String(v.y), rate: v.p, count: v.n == null ? null : num(v.n), color, caution: v.pg === "e", na: t().notPublished }));
@@ -1832,7 +1816,7 @@
     function censusBlock(d, isOntario) {
       const x = t(), a = d.g.a, w = x.whoNoun.a;
       let html = `<section class="block"><h3>${esc(x.bCensus)}</h3>`;
-      if (a && a.rel < 2) {
+      if (a) {
         html += `<div class="hero"><span class="big">${pct(a.p)}</span><span class="lbl">${esc(x.heroCensus(w, num(a.n)))}</span></div>
           ${stacked([{ label: x.segIn, value: a.n, shown: num(a.n), color: BAR.dark }, { label: x.segNotIn, value: a.hh - a.n, shown: num(a.hh - a.n), color: BAR.light }], a.hh)}`;
       }
@@ -1843,10 +1827,10 @@
       html += `<section class="block"><h3>${esc(x.bTenure)}</h3>`;
       const rows = ["r", "o"].map((k) => {
         const g = d.g[k];
-        return { label: x.whoName[k], rate: g && g.rel < 2 ? g.p : null, count: g && g.rel < 2 ? `${num(g.n)} ${x.homes}` : null,
-          color: k === "r" ? BAR.dark : BAR.main, caution: g?.rel === 1, na: g ? x.ppTooUncertain : x.ppNA };
+        return { label: x.whoName[k], rate: g ? g.p : null, count: g ? `${num(g.n)} ${x.homes}` : null,
+          color: k === "r" ? BAR.dark : BAR.main, na: x.ppNA };
       });
-      html += hbars(rows, Math.max(1, ...rows.map((r) => r.rate || 0), isOntario ? 0 : Math.max(ONT_C.g.r.p, ONT_C.g.o.p)), "86px") + cautionKey(rows);
+      html += hbars(rows, Math.max(1, ...rows.map((r) => r.rate || 0), isOntario ? 0 : Math.max(ONT_C.g.r.p, ONT_C.g.o.p)), "86px");
       if (!isOntario) html += cmp(`${x.whoName.r} ${pct(ONT_C.g.r.p)} · ${x.whoName.o} ${pct(ONT_C.g.o.p)}`);
       for (const k of ["r", "o"]) {
         const g = d.g[k];
@@ -1922,14 +1906,15 @@
         body += `<tr><th>${esc(x.census)}</th><th class="num">${esc(x.rowsCensus.inNeed)}</th><th class="num">${esc(x.rowsCensus.examined)}</th></tr>`;
         for (const k of WHO) {
           const g = c.g[k];
-          const inNeed = !g ? "–" : g.rel === 2 ? esc(x.ppTooUncertain) : `${num(g.n)}<span class="tp">${pct(g.p)}${g.rel === 1 ? " *" : ""}</span>`;
+          const inNeed = !g ? "–" : `${num(g.n)}<span class="tp">${pct(g.p)}</span>`;
           body += row([x.whoName[k], inNeed, g?.hh == null ? "–" : num(g.hh)]);
         }
       }
       if (!d || isSurvey(d.layer)) {   // yearly survey: share, homes, reliability
         const s = d ? d.s : ONT_S;
         body += `<tr><th>${esc(d ? name : x.bTrend)}</th><th class="num">${esc(x.rowsSurvey.pct)}</th><th class="num">${esc(x.rowsSurvey.num)}</th></tr>`;
-        for (const v of s) body += row([String(v.y), v.p == null ? "–" : `${pct(v.p)}<span class="tp">${esc(x.grades[v.pg])}</span>`, v.n == null ? "–" : `${num(v.n)}<span class="tp">${esc(x.grades[v.ng])}</span>`]);
+        const np = `<span class="np">${esc(x.notPublished)}</span>`;
+        for (const v of s) body += row([String(v.y), v.p == null ? np : pct(v.p), v.n == null ? np : num(v.n)]);
       }
       return `<details class="more"><summary>${esc(x.allFigures)}</summary><table class="all"><tbody>${body}</tbody></table></details>`;
     }
@@ -2223,7 +2208,7 @@
         const [geojson] = await Promise.all([request, mapLoaded]);
         SRC[layer] = prepare(geojson, layer);
         if (!map.hasImage("chn-hatch")) map.addImage("chn-hatch", hatchImage(), { pixelRatio: 2 });
-        if (!map.hasImage("chn-dots")) map.addImage("chn-dots", dotsImage(), { pixelRatio: 2 });
+
         addLayersFor(layer);
         if (state.layer === layer) showLoading(false);
         refresh();

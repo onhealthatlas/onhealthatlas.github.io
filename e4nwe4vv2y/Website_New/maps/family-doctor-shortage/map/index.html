@@ -120,6 +120,14 @@
     .titleblock h1 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; color: var(--navy); }
     .titleblock .sub { margin: 3px 0 0; font-size: 13px; line-height: 1.4; color: var(--muted); max-width: 780px; text-wrap: balance; }
     .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    /* "Zoom to Toronto": a plain button, so it isn't mistaken for a fourth choice in the area switch beside it */
+    #zoomToronto {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--paper);
+      font: 600 13.5px/1.2 var(--sans); color: var(--accent); cursor: pointer; white-space: nowrap;
+    }
+    #zoomToronto:hover { background: var(--wash); }
+    #zoomToronto svg { flex: none; }
 
     .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); }
     .seg button {
@@ -128,7 +136,7 @@
     }
     .seg button + button { border-left: 1px solid var(--line); }
     .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
-    .seg button:focus-visible, .topic:focus-visible, #searchInput:focus-visible, summary:focus-visible {
+    .seg button:focus-visible, .topic:focus-visible, #searchInput:focus-visible, #zoomToronto:focus-visible, summary:focus-visible {
       outline: 3px solid rgba(17, 160, 219, 0.45); outline-offset: 1px;
     }
 
@@ -292,6 +300,11 @@
       .titleblock h1 { font-size: 18px; }
       .controls { width: 100%; }
       .search-wrap { flex: 1 1 180px; width: auto; }
+      /* the Toronto button moves down beside the search box, under the area buttons */
+      #zoomToronto { order: 1; }
+      .search-wrap { order: 2; }
+      /* the French search hints are longer: there, the search box gets its own row rather than cut its hint short */
+      html[lang="fr"] .search-wrap { flex-basis: 260px; }
       main { flex-direction: column; }
       #mapwrap { display: flex; flex-direction: column; }
       #layerCard {
@@ -346,6 +359,7 @@
       <p class="sub" id="txtSub">How many people aren’t registered with a family doctor, and how many doctors are close to retirement, in every Ontario riding and municipality. Data as of January 1, 2026.</p>
     </div>
     <div class="controls">
+      <button type="button" id="zoomToronto"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span id="txtZoomToronto">Zoom to Toronto</span></button>
       <div class="seg" id="geoToggle" role="group" aria-label="Areas">
         <button type="button" data-layer="ped" aria-pressed="true" id="btnByRiding">By riding</button>
         <button type="button" data-layer="csd" aria-pressed="false" id="btnByMuni">By municipality</button>
@@ -1141,7 +1155,7 @@
         locale: "en-CA",
         title: "The family doctor shortage, 2026",
         sub: "How many people aren’t registered with a family doctor, and how many doctors are close to retirement, in every Ontario riding and municipality. Data as of January 1, 2026.",
-        byRiding: "By riding", byMuni: "By municipality", areasLabel: "Areas",
+        byRiding: "By riding", byMuni: "By municipality", areasLabel: "Areas", zoomToronto: "Zoom to Toronto",
         searchPed: "Search for a riding…", searchCsd: "Search for a municipality…", noMatch: "No matches", notInSource: "not in the source data",
         showOnMap: "Show on the map", shadeBy: "Shade by",
         loading: "Loading…", loadError: "The map boundaries couldn't be loaded. Please refresh the page.",
@@ -1238,7 +1252,7 @@
         locale: "fr-CA",
         title: "La pénurie de médecins de famille, 2026",
         sub: "Combien de personnes ne sont pas inscrites auprès d’un médecin de famille, et combien de médecins approchent de la retraite, dans chaque circonscription et municipalité de l’Ontario. Données au 1er janvier 2026.",
-        byRiding: "Par circonscription", byMuni: "Par municipalité", areasLabel: "Territoires",
+        byRiding: "Par circonscription", byMuni: "Par municipalité", areasLabel: "Territoires", zoomToronto: "Zoomer sur Toronto",
         searchPed: "Rechercher une circonscription…", searchCsd: "Rechercher une municipalité…", noMatch: "Aucun résultat", notInSource: "absente des données sources",
         showOnMap: "Afficher sur la carte", shadeBy: "Colorer selon",
         loading: "Chargement…", loadError: "Les limites de la carte n’ont pas pu être chargées. Veuillez actualiser la page.",
@@ -2034,6 +2048,26 @@
     }
 
     // ----------------------------------------------------------------------------------------
+    // "Zoom to Toronto" button (in the header)
+    // ----------------------------------------------------------------------------------------
+    // The City of Toronto (census subdivision 3520005), from its outline in on_csd.geojson:
+    // [[west, south], [east, north]].
+    const TORONTO_BOUNDS = [[-79.6393, 43.5603], [-79.1135, 43.8555]];
+    $("zoomToronto").addEventListener("click", () => {
+      // Fit the city into the open part of the map: right of the options card on wide screens, and clear of
+      // the buttons down the right-hand side. In a narrow window, the city may go under those buttons rather
+      // than shrink further; it only goes under the options card if there's almost no room beside it.
+      const box = $("map").getBoundingClientRect(), card = $("layerCard").getBoundingClientRect();
+      const gap = narrowScreen() ? 12 : 24;
+      const beside = narrowScreen() ? 0 : Math.max(0, card.right - box.left);
+      let left = beside + gap, right = gap + 40;
+      if (box.width - left - right < 200) right = gap;
+      if (box.width - left - right < 120) left = gap;
+      const cam = map.cameraForBounds(TORONTO_BOUNDS, { padding: { top: gap, bottom: gap, left, right } });
+      if (cam) map.easeTo({ center: cam.center, zoom: cam.zoom, duration: 900 });
+    });
+
+    // ----------------------------------------------------------------------------------------
     // Language and refresh
     // ----------------------------------------------------------------------------------------
     function applyStaticText() {
@@ -2043,6 +2077,7 @@
       $("btnByRiding").textContent = x.byRiding;
       $("btnByMuni").textContent = x.byMuni;
       $("geoToggle").setAttribute("aria-label", x.areasLabel);
+      $("txtZoomToronto").textContent = x.zoomToronto;
       $("txtShowOnMap").textContent = x.showOnMap;
       $("txtShadeBy").textContent = x.shadeBy;
       input.placeholder = state.layer === "ped" ? x.searchPed : x.searchCsd;

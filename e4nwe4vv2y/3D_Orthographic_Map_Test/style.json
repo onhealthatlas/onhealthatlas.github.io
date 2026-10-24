@@ -12,7 +12,7 @@
     },
     "openmaptiles": {
       "type": "vector",
-      "url": "pmtiles://https://tiles.onhealthatlas.ca/world.pmtiles"
+      "url": "pmtiles://https://tiles.ontariopulsecheck.ca/world.pmtiles"
     }
   },
   "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",

@@ -14,7 +14,7 @@
 
   const ONTARIO_BOUNDS = [[-95.5, 41.5], [-73.8, 57.0]];
 
-  const STYLE_URL = window.MORTGAGE_MAP_STYLE_URL || "https://www.onhealthatlas.ca/e4nwe4vv2y/Globe_Light/style.json";
+  const STYLE_URL = window.MORTGAGE_MAP_STYLE_URL || "https://www.ontariopulsecheck.ca/e4nwe4vv2y/Globe_Light/style.json";
   const DATA_BASE = window.MORTGAGE_MAP_DATA_BASE || "data/";
 
   // ---------------------------------------------------------------

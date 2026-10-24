@@ -9,22 +9,22 @@
        Only index.html and style.json are hosted separately.
        crossorigin="anonymous" on each tag lets every request (including MapLibre's own
        fetches for tiles, glyphs and sprites) share the one pre-opened connection. -->
-  <link rel="preconnect" href="https://cdn.onhealthatlas.ca" crossorigin="anonymous" />
+  <link rel="preconnect" href="https://cdn.ontariopulsecheck.ca" crossorigin="anonymous" />
 
   <!-- MapLibre GL JS (pinned version for stability) -->
-  <link rel="stylesheet" href="https://cdn.onhealthatlas.ca/lib/maplibre-gl-5.15.0/maplibre-gl.css" crossorigin="anonymous" />
-  <script defer src="https://cdn.onhealthatlas.ca/lib/maplibre-gl-5.15.0/maplibre-gl.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://cdn.ontariopulsecheck.ca/lib/maplibre-gl-5.15.0/maplibre-gl.css" crossorigin="anonymous" />
+  <script defer src="https://cdn.ontariopulsecheck.ca/lib/maplibre-gl-5.15.0/maplibre-gl.js" crossorigin="anonymous"></script>
 
   <!-- PMTiles protocol handler, so MapLibre can read pmtiles:// sources directly from R2 -->
-  <script defer src="https://cdn.onhealthatlas.ca/lib/pmtiles-3.2.0/pmtiles.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.ontariopulsecheck.ca/lib/pmtiles-3.2.0/pmtiles.js" crossorigin="anonymous"></script>
 
   <!-- Highway shield generator (ES module), fetched early so it downloads in parallel -->
-  <link rel="modulepreload" href="https://cdn.onhealthatlas.ca/lib/maplibre-shield-generator-0.1.1/index.js" crossorigin="anonymous" />
+  <link rel="modulepreload" href="https://cdn.ontariopulsecheck.ca/lib/maplibre-shield-generator-0.1.1/index.js" crossorigin="anonymous" />
 
   <!-- Font used to draw the numbers on highway shields (canvas text, not map glyphs).
        noto-sans.css declares a single "Noto Sans" face at weight 500 / 75% width, which is
        exactly the "condensed 500" font the shield renderer asks for. -->
-  <link rel="stylesheet" href="https://cdn.onhealthatlas.ca/fonts/noto-sans/noto-sans.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdn.ontariopulsecheck.ca/fonts/noto-sans/noto-sans.css" crossorigin="anonymous" />
 
   <style>
     html, body, #map {
@@ -48,7 +48,7 @@
   <div id="map"></div>
 
   <script type="module">
-    import { ShieldRenderer } from "https://cdn.onhealthatlas.ca/lib/maplibre-shield-generator-0.1.1/index.js";
+    import { ShieldRenderer } from "https://cdn.ontariopulsecheck.ca/lib/maplibre-shield-generator-0.1.1/index.js";
 
     // ---- Address (URL) -------------------------------------------------------
     // The map's state is kept in its address, so it can be linked to or embedded directly:
@@ -79,7 +79,7 @@
     // ---- Shield configuration ------------------------------------------------
     // Shield definitions + artwork, hosted on R2 (copied from OpenStreetMap
     // Americana, which is CC0). See sprites/shields/ in the bucket.
-    const CDN = "https://cdn.onhealthatlas.ca";
+    const CDN = "https://cdn.ontariopulsecheck.ca";
     const SHIELD_DEFS_URL = `${CDN}/sprites/shields/shields.json`;
     const SHIELD_SPRITE_URL = `${CDN}/sprites/shields/sprite`; // MapLibre loads sprite.json/.png and @2x from this
     const SHIELD_SPRITE_ID = "shields";   // images in this sprite are addressed as "shields:<name>"

@@ -9,11 +9,11 @@
   "sources": {
     "openmaptiles": {
       "type": "vector",
-      "url": "pmtiles://https://tiles.onhealthatlas.ca/ontario.pmtiles"
+      "url": "pmtiles://https://tiles.ontariopulsecheck.ca/ontario.pmtiles"
     },
     "context": {
       "type": "vector",
-      "url": "pmtiles://https://tiles.onhealthatlas.ca/context_na.pmtiles"
+      "url": "pmtiles://https://tiles.ontariopulsecheck.ca/context_na.pmtiles"
     }
   },
   "sprite": "https://maputnik.github.io/osm-liberty/sprites/osm-liberty",
